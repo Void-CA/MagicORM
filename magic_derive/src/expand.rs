@@ -10,6 +10,7 @@ use crate::operations::crud::{
     generate_put, generate_newstruct_put, 
     generate_get, generate_get_by_id
 };
+use crate::operations::relations::belongs_to;
 
 pub fn expand_magic_model(
     input: &DeriveInput,
@@ -51,6 +52,8 @@ pub fn expand_magic_model(
 
     let from_row_impl = generate_from_row_impl(struct_name, &model);
     let model_meta_impl = generate_model_meta_impl(struct_name, fk_fields);
+    let relations_methods = generate_relations_methods(struct_name, fk_fields);
+
     quote! {
         #vis struct #new_struct_name {
             #( #new_fields, )*
@@ -82,6 +85,8 @@ pub fn expand_magic_model(
 
 
             #crud_methods
+
+            #relations_methods
         }
 
         #newstruct_methods
@@ -105,6 +110,24 @@ fn generate_crud_methods(struct_name: &syn::Ident, model: &ModelInfo, table_name
         #select_by_id_method
         #delete_method
         #delete_by_id_method
+    }
+}
+
+fn generate_relations_methods(struct_name: &syn::Ident, fk_fields: &[FKConfig]) -> proc_macro2::TokenStream {
+    // let has_many_methods = fk_fields.iter().map(|fk| {
+    //     let related_model = &fk.model;
+    //     let fk_column = &fk.column;
+    //     crate::operations::relations::has_many::generate_has_many(struct_name, related_model, fk_column)
+    // });
+
+    let belongs_to_methods = fk_fields.iter().map(|fk| {
+        let related_model = &fk.model;
+        let fk_field = &fk.field_ident;
+        crate::operations::relations::belongs_to::generate_belongs_to(struct_name, related_model, fk_field)
+    });
+
+    quote! {
+        #( #belongs_to_methods )*
     }
 }
 

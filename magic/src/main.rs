@@ -29,8 +29,15 @@ async fn main() -> anyhow::Result<()> {
 
     create_db(&pool).await?;
 
-    println!("{:?}", Post::foreign_keys());
-    println!("{:?}", Post::TABLE);
+    let users = User::query()
+    .join::<Post>()
+    .fetch_all(&pool)
+    .await?;
+
+    for user in  users {
+        println!("{:?}", user);
+        
+    }
 
     Ok(())
 }
