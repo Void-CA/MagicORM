@@ -9,21 +9,37 @@ pub fn derive_magic_model(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
 
     let struct_name = input.ident;
+    let vis = input.vis;
 
     // Generar nombre NewStruct
     let new_struct_name = format_ident!("New{}", struct_name);
 
     let fields = match input.data {
         Data::Struct(data) => data.fields,
-        _ => panic!("MagicModel only works on structs"),
+        _ => {
+            return syn::Error::new_spanned(
+                struct_name,
+                "MagicModel can only be derived for structs",
+            )
+            .to_compile_error()
+            .into();
+        }
     };
 
     let named_fields = match fields {
         Fields::Named(fields) => fields.named,
-        _ => panic!("MagicModel requires named fields"),
+        _ => {
+            return syn::Error::new_spanned(
+                struct_name,
+                "MagicModel requires named fields",
+            )
+            .to_compile_error()
+            .into();
+        }
     };
 
     // Separar campo id del resto
+    let mut found_id = false;
     let mut new_fields = Vec::new();
     let mut new_params = Vec::new();
     let mut new_inits = Vec::new();
@@ -33,6 +49,7 @@ pub fn derive_magic_model(input: TokenStream) -> TokenStream {
         let field_type = field.ty;
 
         if field_name == "id" {
+            found_id = true;
             continue;
         }
 
@@ -49,8 +66,17 @@ pub fn derive_magic_model(input: TokenStream) -> TokenStream {
         });
     }
 
+    if !found_id {
+        return syn::Error::new_spanned(
+            struct_name,
+            "MagicModel requires a field named `id`",
+        )
+        .to_compile_error()
+        .into();
+    }
+
     let expanded = quote! {
-        pub struct #new_struct_name {
+        #vis struct #new_struct_name {
             #( #new_fields, )*
         }
 

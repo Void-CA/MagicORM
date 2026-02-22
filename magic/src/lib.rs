@@ -8,7 +8,6 @@ pub struct User {
 }
 
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
