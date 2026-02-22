@@ -6,6 +6,7 @@ use syn::{parse_macro_input, DeriveInput};
 mod attributes;
 mod model;
 mod expand;
+mod crud;
 
 use attributes::parse_magic_attributes;
 use model::analyze_model;
