@@ -11,6 +11,15 @@ pub struct User {
 }
 
 
+#[derive(MagicModel, Debug)]
+#[magic(table = "posts")]
+pub struct Post {
+    pub id: i64,
+    pub user_id: i64,
+    pub title: String,
+    pub content: String,
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     // Base de datos en disco (archivo "test.db")
@@ -19,7 +28,9 @@ async fn main() -> anyhow::Result<()> {
     create_db(&pool).await?;
 
     let users: Vec<User> = User::query()
-    .filter("edad", ">", 30)
+    .join("posts", "users.id = posts.user_id", "LEFT")
+    .select(&["users.id", "users.name", "users.edad", "users.email", "posts.title", "posts.content"])
+    .filter("edad", "=", 30)
     .fetch_all(&pool)
     .await?;
 
@@ -39,10 +50,17 @@ async fn create_db(pool : &SqlitePool) -> anyhow::Result<()> {
             name TEXT NOT NULL,
             edad INTEGER NOT NULL,
             email TEXT NOT NULL
-        )",
-    )
-    .execute(pool)
-    .await?;
+        );"
+    ).execute(pool).await?;
+
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS posts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            title TEXT NOT NULL,
+            content TEXT NOT NULL
+        );"
+    ).execute(pool).await?;
 
 
     let users= vec![
@@ -50,6 +68,18 @@ async fn create_db(pool : &SqlitePool) -> anyhow::Result<()> {
         User::new("Carol".into(), 28, "carol@example.com".into()),
         User::new("Dave".into(), 40, "dave@example.com".into()),
     ];
+
+    let user_x = User::new("Alice".into(), 30, "alice@gmail.com".into());
+    let id_user_x = user_x.insert(pool).await?;
+
+    let posts = vec![
+        Post::new(id_user_x, "First Post".into(), "This is the content of the first post.".into()),
+        Post::new(id_user_x, "Second Post".into(), "This is the content of the second post.".into()),
+    ];
+
+    for post in posts {
+        post.insert(pool).await?;
+    }
 
     for user in users {
         user.insert(pool).await?;
