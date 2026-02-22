@@ -3,8 +3,13 @@ use syn::DeriveInput;
 
 use crate::attributes::MagicConfig;
 use crate::model::ModelInfo;
-use crate::crud::{generate_insert, generate_newstruct_insert};
 
+use crate::crud::{
+    generate_delete, generate_delete_by_id, 
+    generate_insert, generate_newstruct_insert, 
+    generate_update, generate_newstruct_update, 
+    generate_select, generate_select_by_id
+};
 
 pub fn expand_magic_model(
     input: &DeriveInput,
@@ -40,15 +45,17 @@ pub fn expand_magic_model(
         .chain(model.other_fields.iter().map(|f| f.ident.to_string()))
         .collect();
 
-    let insert_fn = generate_insert(struct_name, &model, &table_name);
-    let generate_newstruct_insert = generate_newstruct_insert(struct_name);
-    let generate_update = crate::crud::generate_update(struct_name, &model, &table_name);
-    let generate_newstruct_update = crate::crud::generate_newstruct_update(struct_name);
+    let crud_methods = generate_crud_methods(struct_name, &model, &table_name);
+    let newstruct_methods = generate_newstruct_methods(struct_name);
+
+    let from_row_impl = generate_from_row_impl(struct_name, &model);
 
     quote! {
         #vis struct #new_struct_name {
             #( #new_fields, )*
         }
+        
+        #from_row_impl
 
         impl #struct_name {
             pub const TABLE: &'static str = #table_name;
@@ -63,11 +70,59 @@ pub fn expand_magic_model(
                 &[ #( #column_names ),* ]
             }
 
-            #insert_fn
-            #generate_update
+            #crud_methods
         }
 
-        #generate_newstruct_insert
-        #generate_newstruct_update
+        #newstruct_methods
+    }
+}
+
+fn generate_crud_methods(struct_name: &syn::Ident, model: &ModelInfo, table_name: &str) -> proc_macro2::TokenStream {
+    let insert_method = generate_insert(struct_name, model, table_name);
+    let update_method = generate_update(struct_name, model, table_name);
+    let select_method = generate_select(struct_name, model, table_name);
+    let select_by_id_method = generate_select_by_id(struct_name, model, table_name);
+    let delete_method = generate_delete(table_name);
+    let delete_by_id_method = generate_delete_by_id(table_name);
+    
+    quote! {
+        #insert_method
+        #update_method
+        #select_method
+        #select_by_id_method
+        #delete_method
+        #delete_by_id_method
+    }
+}
+
+fn generate_newstruct_methods(struct_name: &syn::Ident) -> proc_macro2::TokenStream {
+    let newstruct_insert = generate_newstruct_insert(struct_name);
+    let newstruct_update = generate_newstruct_update(struct_name);
+
+    quote! {
+        #newstruct_insert
+        #newstruct_update
+    }
+}
+
+pub fn generate_from_row_impl(struct_name: &syn::Ident, model: &ModelInfo) -> proc_macro2::TokenStream {
+    let id_ident = &model.id_field.ident;
+    let id_name = id_ident.to_string();
+
+    let other_idents: Vec<_> = model.other_fields.iter().map(|f| &f.ident).collect();
+    let other_names: Vec<_> = other_idents.iter().map(|i| i.to_string()).collect();
+
+    quote! {
+        impl sqlx::FromRow<'_, sqlx::sqlite::SqliteRow> for #struct_name {
+            fn from_row(row: &sqlx::sqlite::SqliteRow) -> Result<Self, sqlx::Error> {
+                use sqlx::Row;
+                Ok(Self {
+                    #id_ident: row.try_get(#id_name)?,
+                    #(
+                        #other_idents: row.try_get(#other_names)?,
+                    )*
+                })
+            }
+        }
     }
 }
