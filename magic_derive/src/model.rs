@@ -3,7 +3,7 @@ use syn::{DeriveInput, Data, Fields, Ident, Type, Attribute};
 pub struct FieldInfo {
     pub ident: Ident,
     pub ty: Type,
-    pub attrs: Vec<Attribute>, // <-- agregado para poder parsear #[FK] y otros
+    pub attrs: Vec<Attribute>, 
 }
 
 pub struct ModelInfo {
