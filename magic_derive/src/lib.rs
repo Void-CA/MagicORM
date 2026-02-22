@@ -6,7 +6,7 @@ use syn::{parse_macro_input, DeriveInput};
 mod attrs;
 mod model;
 mod expand;
-mod crud;
+mod operations;
 
 
 use attrs::{parse_model_fks, parse_magic_attributes, FKConfig};

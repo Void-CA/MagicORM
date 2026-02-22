@@ -4,7 +4,7 @@ use syn::DeriveInput;
 use crate::attrs::{FKConfig, MagicConfig};
 use crate::model::ModelInfo;
 
-use crate::crud::{
+use crate::operations::crud::{
     generate_delete, generate_delete_by_id, 
     generate_insert, generate_newstruct_insert, 
     generate_put, generate_newstruct_put, 
