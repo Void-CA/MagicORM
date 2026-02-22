@@ -1,45 +1,54 @@
 use magic::MagicModel;
-use sqlx::SqlitePool;
+use sqlx::{SqlitePool, database};
 
-#[derive(MagicModel)]
+#[derive(MagicModel, Debug)]
 #[magic(table = "users")]
 pub struct User {
     pub id: i64,
     pub name: String,
+    pub edad: i32,
     pub email: String,
 }
+
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     // Base de datos en disco (archivo "test.db")
     let pool = SqlitePool::connect("sqlite://test.db").await?;
 
-    // Crear tabla si no existe
+    create_db(&pool).await?;
+
+    let n_deletions = User::delete_by_id(&pool, 19).await?;
+    println!("Deleted {} rows", n_deletions);
+
+
+    Ok(())
+}
+
+
+
+async fn create_db(pool : &SqlitePool) -> anyhow::Result<()> {
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
+            edad INTEGER NOT NULL,
             email TEXT NOT NULL
         )",
     )
-    .execute(&pool)
+    .execute(pool)
     .await?;
 
-    // Instancia de NewUser
-    let user_1 = User::new("Alice".into(), "alice@example.com".into());
-    let user_2 = User::new("Bob".into(), "bob@example.com".into());
-    let user_3 = User::new("Charlie".into(), "charlie@example.com".into());
 
-    // Insertar
-    let id = user_1.insert(&pool).await?;
-    user_2.insert(&pool).await?;
-    user_3.insert(&pool).await?;
-    println!("User inserted with id: {}", id);
+    let users= vec![
+        User::new("Bob".into(), 33, "bob@example.com".into()),
+        User::new("Carol".into(), 28, "carol@example.com".into()),
+        User::new("Dave".into(), 40, "dave@example.com".into()),
+    ];
 
-    // Actualizar
-    let new_put_user = User::new("Alice".into(), "alice.updated@example.com".into());
-    let rows_affected = new_put_user.update(&pool, id).await?;
-    println!("User updated with rows affected: {}", rows_affected);
+    for user in users {
+        user.insert(pool).await?;
+    }
 
     Ok(())
 }
