@@ -1,5 +1,5 @@
 [package]
-name = "magic_orm"
+name = "magic"
 version = "0.1.0"
 edition = "2024"
 
