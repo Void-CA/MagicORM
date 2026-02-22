@@ -26,15 +26,10 @@ async fn main() -> anyhow::Result<()> {
     .await?;
 
     // Instancia de NewUser
-    let new_user = NewUser {
-        name: "Alice".into(),
-        email: "alice@example.com".into(),
-    };
+    let new_user = User::new("Alice".into(), "alice@example.com".into());
 
     // Insertar
-    let id = User::new(new_user.name, new_user.email)
-        .insert(&pool)
-        .await?;
+    let id = new_user.insert(&pool).await?;
 
     println!("User inserted with id: {}", id);
 

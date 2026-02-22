@@ -3,7 +3,7 @@ use syn::DeriveInput;
 
 use crate::attributes::MagicConfig;
 use crate::model::ModelInfo;
-use crate::crud::{generate_insert};
+use crate::crud::{generate_insert, generate_newstruct_insert};
 
 
 pub fn expand_magic_model(
@@ -41,7 +41,7 @@ pub fn expand_magic_model(
         .collect();
 
     let insert_fn = generate_insert(struct_name, &model, &table_name);
-
+    let generate_newstruct_insert = generate_newstruct_insert(struct_name);
     quote! {
         #vis struct #new_struct_name {
             #( #new_fields, )*
@@ -62,5 +62,7 @@ pub fn expand_magic_model(
 
             #insert_fn
         }
+
+        #generate_newstruct_insert
     }
 }

@@ -1,18 +1,14 @@
-use quote::quote;
+use quote::{format_ident, quote};
 use syn::Ident;
 use crate::model::ModelInfo;
 
 pub fn generate_insert(struct_name: &Ident, model: &ModelInfo, table_name: &str) -> proc_macro2::TokenStream {
-    // Convertir cada campo a Ident
-    let idents: Vec<Ident> = model.other_fields.iter()
-        .map(|f| f.ident.clone())
-        .collect();
-
-    // Nombres como &str para la SQL
+    let idents: Vec<Ident> = model.other_fields.iter().map(|f| f.ident.clone()).collect();
     let column_names: Vec<String> = idents.iter().map(|i| i.to_string()).collect();
+    let new_struct_name = format_ident!("New{}", struct_name);
 
     quote! {
-        pub async fn insert(&self, pool: &sqlx::SqlitePool) -> sqlx::Result<i64> {
+        pub async fn insert(pool: &sqlx::SqlitePool, new: &#new_struct_name) -> sqlx::Result<i64> {
             let cols = &[ #( #column_names ),* ];
             let placeholders = vec!["?"; cols.len()].join(", ");
             let sql = format!(
@@ -22,12 +18,22 @@ pub fn generate_insert(struct_name: &Ident, model: &ModelInfo, table_name: &str)
                 placeholders
             );
 
-            let result = sqlx::query(&sql)
-                #( .bind(&self.#idents) )*
-                .execute(pool)
-                .await?;
+            let mut query = sqlx::query(&sql);
+            #( query = query.bind(&new.#idents); )*
+            let result = query.execute(pool).await?;
 
             Ok(result.last_insert_rowid())
+        }
+    }
+}
+
+pub fn generate_newstruct_insert(struct_name: &Ident) -> proc_macro2::TokenStream {
+    let new_struct_name = format_ident!("New{}", struct_name);
+    quote! {
+        impl #new_struct_name {
+            pub async fn insert(&self, pool: &sqlx::SqlitePool) -> sqlx::Result<i64> {
+                #struct_name::insert(pool, self).await
+            }
         }
     }
 }
