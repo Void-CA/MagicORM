@@ -1,6 +1,9 @@
 use crate::query::QueryBuilder;
 use sqlx;
-impl<'a, T> QueryBuilder<'a, T> {
+impl<'a, T> QueryBuilder<'a, T> 
+where
+    T: for<'r> sqlx::FromRow<'r, sqlx::sqlite::SqliteRow> + Send + Unpin,
+{
     pub fn new(table: &'a str) -> Self {
         Self {
             table,
@@ -38,5 +41,63 @@ impl<'a, T> QueryBuilder<'a, T> {
         self
     }
 
-    
+    pub async fn fetch_all(self, pool: &sqlx::SqlitePool) -> sqlx::Result<Vec<T>> {
+        let mut sql = if self.select_columns.is_empty() {
+            format!("SELECT * FROM {}", self.table)
+        } else {
+            format!("SELECT {} FROM {}", self.select_columns.join(", "), self.table)
+        };
+
+        if !self.filters.is_empty() {
+            sql.push_str(" WHERE ");
+            sql.push_str(&self.filters.join(" AND "));
+        }
+
+        if let Some(order) = self.order_by {
+            sql.push_str(" ORDER BY ");
+            sql.push_str(&order);
+        }
+
+        if let Some(limit) = self.limit {
+            sql.push_str(&format!(" LIMIT {}", limit));
+        }
+
+        if let Some(offset) = self.offset {
+            sql.push_str(&format!(" OFFSET {}", offset));
+        }
+
+        sqlx::query_as::<_, T>(&sql)
+            .fetch_all(pool)
+            .await
+    }
+
+    pub async fn fetch_one(self, pool: &sqlx::SqlitePool) -> sqlx::Result<Option<T>> {
+        let mut sql = if self.select_columns.is_empty() {
+            format!("SELECT * FROM {}", self.table)
+        } else {
+            format!("SELECT {} FROM {}", self.select_columns.join(", "), self.table)
+        };
+
+        if !self.filters.is_empty() {
+            sql.push_str(" WHERE ");
+            sql.push_str(&self.filters.join(" AND "));
+        }
+
+        if let Some(order) = self.order_by {
+            sql.push_str(" ORDER BY ");
+            sql.push_str(&order);
+        }
+
+        if let Some(limit) = self.limit {
+            sql.push_str(&format!(" LIMIT {}", limit));
+        }
+
+        if let Some(offset) = self.offset {
+            sql.push_str(&format!(" OFFSET {}", offset));
+        }
+
+        sqlx::query_as::<_, T>(&sql)
+            .fetch_optional(pool)
+            .await
+    }
 }

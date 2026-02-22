@@ -1,5 +1,5 @@
 use magic::MagicModel;
-use sqlx::{SqlitePool, database};
+use sqlx::{SqlitePool};
 
 #[derive(MagicModel, Debug)]
 #[magic(table = "users")]
@@ -18,14 +18,14 @@ async fn main() -> anyhow::Result<()> {
 
     create_db(&pool).await?;
 
-    let users = User::get_all(&pool).await?;
+    let users: Vec<User> = User::query()
+    .filter("edad", ">", 30)
+    .fetch_all(&pool)
+    .await?;
+
     for user in users {
-        println!("  - {}: {} años, {}", user.name, user.edad, user.email);
+        println!("{:?}", user);
     }
-
-    let n_deletions = User::delete_all(&pool).await?;
-    println!("Número de usuarios eliminados: {}", n_deletions);
-
 
     Ok(())
 }

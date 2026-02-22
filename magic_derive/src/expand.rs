@@ -54,8 +54,13 @@ pub fn expand_magic_model(
         #vis struct #new_struct_name {
             #( #new_fields, )*
         }
+
         
         #from_row_impl
+
+        unsafe impl Send for #struct_name {}
+        
+        impl Unpin for #struct_name {}
 
         impl #struct_name {
             pub const TABLE: &'static str = #table_name;
