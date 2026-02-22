@@ -2,7 +2,7 @@ use quote::{quote, format_ident};
 use syn::DeriveInput;
 
 use crate::attrs::{FKConfig, MagicConfig};
-use crate::model::{self, ModelInfo};
+use crate::model::ModelInfo;
 
 use crate::operations::crud::{
     generate_delete, generate_delete_by_id, 

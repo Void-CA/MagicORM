@@ -9,7 +9,7 @@ mod expand;
 mod operations;
 
 
-use attrs::{parse_model_fks, parse_magic_attributes, FKConfig};
+use attrs::{parse_model_fks, parse_magic_attributes};
 use model::analyze_model;
 use expand::expand_magic_model;
 
