@@ -33,5 +33,10 @@ async fn main() -> anyhow::Result<()> {
 
     println!("User inserted with id: {}", id);
 
+
+    let new_put_user = User::new("Alice".into(), "alice.updated@example.com".into());
+    let rows_affected = new_put_user.update(&pool, id).await?;
+    println!("User updated with rows affected: {}", rows_affected);
+
     Ok(())
 }

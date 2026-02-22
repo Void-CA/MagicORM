@@ -19,6 +19,10 @@ impl ModelInfo {
         names.extend(self.other_fields.iter().map(|f| f.ident.to_string()));
         names
     }
+
+    pub fn no_id_column_names(&self) -> Vec<String> {
+        self.other_fields.iter().map(|f| f.ident.to_string()).collect()
+    }
 }
 
 pub fn analyze_model(input: &DeriveInput) -> syn::Result<ModelInfo> {

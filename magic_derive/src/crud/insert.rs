@@ -4,7 +4,7 @@ use crate::model::ModelInfo;
 
 pub fn generate_insert(struct_name: &Ident, model: &ModelInfo, table_name: &str) -> proc_macro2::TokenStream {
     let idents: Vec<Ident> = model.other_fields.iter().map(|f| f.ident.clone()).collect();
-    let column_names: Vec<String> = idents.iter().map(|i| i.to_string()).collect();
+    let column_names: Vec<String> = model.no_id_column_names();
     let new_struct_name = format_ident!("New{}", struct_name);
 
     quote! {
@@ -22,7 +22,7 @@ pub fn generate_insert(struct_name: &Ident, model: &ModelInfo, table_name: &str)
             #( query = query.bind(&new.#idents); )*
             let result = query.execute(pool).await?;
 
-            Ok(result.last_insert_rowid())
+            Ok(result.last_insert_rowid() as i64)
         }
     }
 }

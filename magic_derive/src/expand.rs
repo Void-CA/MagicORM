@@ -42,6 +42,9 @@ pub fn expand_magic_model(
 
     let insert_fn = generate_insert(struct_name, &model, &table_name);
     let generate_newstruct_insert = generate_newstruct_insert(struct_name);
+    let generate_update = crate::crud::generate_update(struct_name, &model, &table_name);
+    let generate_newstruct_update = crate::crud::generate_newstruct_update(struct_name);
+
     quote! {
         #vis struct #new_struct_name {
             #( #new_fields, )*
@@ -61,8 +64,10 @@ pub fn expand_magic_model(
             }
 
             #insert_fn
+            #generate_update
         }
 
         #generate_newstruct_insert
+        #generate_newstruct_update
     }
 }
