@@ -15,11 +15,13 @@ pub struct User {
 #[magic(table = "posts")]
 pub struct Post {
     pub id: i64,
-    pub user_id: i64,
     pub title: String,
     pub content: String,
+
+    #[FK(User)]
+    pub user_id: i64,
 }
-    
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     // Base de datos en disco (archivo "test.db")
@@ -56,9 +58,9 @@ async fn create_db(pool : &SqlitePool) -> anyhow::Result<()> {
     sqlx::query(
         "CREATE TABLE IF NOT EXISTS posts (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
             title TEXT NOT NULL,
-            content TEXT NOT NULL
+            content TEXT NOT NULL,
+            user_id INTEGER NOT NULL
         );"
     ).execute(pool).await?;
 
@@ -73,8 +75,8 @@ async fn create_db(pool : &SqlitePool) -> anyhow::Result<()> {
     let id_user_x = user_x.insert(pool).await?;
 
     let posts = vec![
-        Post::new(id_user_x, "First Post".into(), "This is the content of the first post.".into()),
-        Post::new(id_user_x, "Second Post".into(), "This is the content of the second post.".into()),
+        Post::new("First Post".into(), "This is the content of the first post.".into(), id_user_x),
+        Post::new("Second Post".into(), "This is the content of the second post.".into(), id_user_x),
     ];
 
     for post in posts {

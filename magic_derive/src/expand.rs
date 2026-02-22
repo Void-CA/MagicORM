@@ -2,7 +2,7 @@ use quote::{quote, format_ident};
 use syn::DeriveInput;
 
 use crate::attrs::{FKConfig, MagicConfig};
-use crate::model::ModelInfo;
+use crate::model::{self, ModelInfo};
 
 use crate::operations::crud::{
     generate_delete, generate_delete_by_id, 
@@ -50,7 +50,7 @@ pub fn expand_magic_model(
     let newstruct_methods = generate_newstruct_methods(struct_name);
 
     let from_row_impl = generate_from_row_impl(struct_name, &model);
-
+    let model_meta_impl = generate_model_meta_impl(struct_name, fk_fields);
     quote! {
         #vis struct #new_struct_name {
             #( #new_fields, )*
@@ -85,6 +85,8 @@ pub fn expand_magic_model(
         }
 
         #newstruct_methods
+
+        #model_meta_impl
     }
 }
 
@@ -116,7 +118,7 @@ fn generate_newstruct_methods(struct_name: &syn::Ident) -> proc_macro2::TokenStr
     }
 }
 
-pub fn generate_from_row_impl(struct_name: &syn::Ident, model: &ModelInfo) -> proc_macro2::TokenStream {
+fn generate_from_row_impl(struct_name: &syn::Ident, model: &ModelInfo) -> proc_macro2::TokenStream {
     let id_ident = &model.id_field.ident;
     let id_name = id_ident.to_string();
 
@@ -137,3 +139,39 @@ pub fn generate_from_row_impl(struct_name: &syn::Ident, model: &ModelInfo) -> pr
         }
     }
 }
+
+fn generate_model_meta_impl(
+    struct_name: &syn::Ident,
+    fk_fields: &[FKConfig],
+) -> proc_macro2::TokenStream {
+    let fk_meta = fk_fields.iter().map(|fk| {
+        let field_name = fk.field_ident.to_string();
+        let related_model = &fk.model;
+        let related_column = &fk.column;
+
+        quote! {
+            ::magic::meta::ForeignKeyMeta {
+                field: #field_name,
+                related_table: <#related_model as ::magic::meta::ModelMeta>::table,
+                related_column: #related_column,
+            }
+        }
+    });
+
+    quote! {
+        impl ::magic::meta::ModelMeta for #struct_name {
+            fn table() -> &'static str {
+                Self::TABLE
+            }
+
+            fn foreign_keys() -> &'static [::magic::meta::ForeignKeyMeta] {
+                static FK_META: &[::magic::meta::ForeignKeyMeta] = &[
+                    #( #fk_meta, )*
+                ];
+                FK_META
+            }
+        }
+    }
+}
+
+           
