@@ -1,8 +1,13 @@
 use crate::query::QueryBuilder;
+use crate::meta::ModelMeta;
+
 use sqlx;
 impl<'a, T> QueryBuilder<'a, T> 
 where
-    T: for<'r> sqlx::FromRow<'r, sqlx::sqlite::SqliteRow> + Send + Unpin,
+    T: ModelMeta 
+    + for<'r> sqlx::FromRow<'r, sqlx::sqlite::SqliteRow> 
+    + Send
+    + Unpin
 {
     pub fn new(table: &'a str) -> Self {
         Self {
@@ -42,8 +47,33 @@ where
         self
     }
 
-    pub fn join(mut self, table: &str, on: &str, join_type: &str) -> Self {
-        self.joins.push(format!("{} JOIN {} ON {}", join_type, table, on));
+    pub fn join<U>(mut self) -> Self
+    where
+        U: ModelMeta,
+    {
+        let base_table = T::TABLE;
+        let join_table = U::TABLE;
+
+        // Buscar FK en U que apunte a T
+        let fk = U::foreign_keys()
+            .iter()
+            .find(|fk| fk.related_table == base_table)
+            .expect("No foreign key relationship found between models");
+
+        let on_clause = format!(
+            "{}.{} = {}.{}",
+            base_table,
+            fk.related_column, // normalmente "id"
+            join_table,
+            fk.field,          // ej: "user_id"
+        );
+
+        self.joins.push(format!(
+            "LEFT JOIN {} ON {}",
+            join_table,
+            on_clause
+        ));
+
         self
     }
 
@@ -65,7 +95,7 @@ where
 
     fn build_sql(&self) -> String {
         let mut sql = if self.select_columns.is_empty() {
-            format!("SELECT * FROM {}", self.table)
+            format!("SELECT * FROM {}", T::TABLE)
         } else {
             format!("SELECT {} FROM {}", self.select_columns.join(", "), self.table)
         };
