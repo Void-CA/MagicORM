@@ -7,8 +7,8 @@ use crate::model::ModelInfo;
 use crate::crud::{
     generate_delete, generate_delete_by_id, 
     generate_insert, generate_newstruct_insert, 
-    generate_update, generate_newstruct_update, 
-    generate_select, generate_select_by_id
+    generate_put, generate_newstruct_put, 
+    generate_get, generate_get_by_id
 };
 
 pub fn expand_magic_model(
@@ -79,9 +79,9 @@ pub fn expand_magic_model(
 
 fn generate_crud_methods(struct_name: &syn::Ident, model: &ModelInfo, table_name: &str) -> proc_macro2::TokenStream {
     let insert_method = generate_insert(struct_name, model, table_name);
-    let update_method = generate_update(struct_name, model, table_name);
-    let select_method = generate_select(struct_name, model, table_name);
-    let select_by_id_method = generate_select_by_id(struct_name, model, table_name);
+    let update_method = generate_put(struct_name, model, table_name);
+    let select_method = generate_get(struct_name, model, table_name);
+    let select_by_id_method = generate_get_by_id(struct_name, model, table_name);
     let delete_method = generate_delete(table_name);
     let delete_by_id_method = generate_delete_by_id(table_name);
     
@@ -97,11 +97,11 @@ fn generate_crud_methods(struct_name: &syn::Ident, model: &ModelInfo, table_name
 
 fn generate_newstruct_methods(struct_name: &syn::Ident) -> proc_macro2::TokenStream {
     let newstruct_insert = generate_newstruct_insert(struct_name);
-    let newstruct_update = generate_newstruct_update(struct_name);
+    let newstruct_put = generate_newstruct_put(struct_name);
 
     quote! {
         #newstruct_insert
-        #newstruct_update
+        #newstruct_put
     }
 }
 

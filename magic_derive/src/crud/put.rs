@@ -2,13 +2,13 @@ use quote::{format_ident, quote};
 use syn::Ident;
 use crate::model::ModelInfo;
 
-pub fn generate_update(struct_name: &Ident, model: &ModelInfo, table_name: &str) -> proc_macro2::TokenStream {
+pub fn generate_put(struct_name: &Ident, model: &ModelInfo, table_name: &str) -> proc_macro2::TokenStream {
     let idents: Vec<Ident> = model.other_fields.iter().map(|f| f.ident.clone()).collect();
     let column_names: Vec<String> = model.no_id_column_names();
     let new_struct_name = format_ident!("New{}", struct_name);
 
     quote! {
-        pub async fn update(pool: &SqlitePool, id: i64, new: &#new_struct_name) -> sqlx::Result<i64> {
+        pub async fn put(pool: &SqlitePool, id: i64, new: &#new_struct_name) -> sqlx::Result<i64> {
             let cols = &[ #( #column_names ),* ];
             let sql = format!(
                 "UPDATE {} SET {} WHERE id = ?",
@@ -27,12 +27,12 @@ pub fn generate_update(struct_name: &Ident, model: &ModelInfo, table_name: &str)
     }
 }
                 
-pub fn generate_newstruct_update(struct_name: &Ident) -> proc_macro2::TokenStream {
+pub fn generate_newstruct_put(struct_name: &Ident) -> proc_macro2::TokenStream {
     let new_struct_name = format_ident!("New{}", struct_name);
     quote! {
         impl #new_struct_name {
-            pub async fn update(&self, pool: &sqlx::SqlitePool, id: i64) -> sqlx::Result<i64> {
-                #struct_name::update(pool, id, self).await
+            pub async fn put(&self, pool: &sqlx::SqlitePool, id: i64) -> sqlx::Result<i64> {
+                #struct_name::put(pool, id, self).await
             }
         }
     }
