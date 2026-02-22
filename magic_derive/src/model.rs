@@ -1,8 +1,9 @@
-use syn::{DeriveInput, Data, Fields, Ident, Type};
+use syn::{DeriveInput, Data, Fields, Ident, Type, Attribute};
 
 pub struct FieldInfo {
     pub ident: Ident,
     pub ty: Type,
+    pub attrs: Vec<Attribute>, // <-- agregado para poder parsear #[FK] y otros
 }
 
 pub struct ModelInfo {
@@ -13,9 +14,7 @@ pub struct ModelInfo {
 impl ModelInfo {
     pub fn column_names(&self) -> Vec<String> {
         let mut names = Vec::new();
-        // Primero el id
         names.push(self.id_field.ident.to_string());
-        // Luego el resto
         names.extend(self.other_fields.iter().map(|f| f.ident.to_string()));
         names
     }
@@ -52,8 +51,9 @@ pub fn analyze_model(input: &DeriveInput) -> syn::Result<ModelInfo> {
     for field in fields {
         let ident = field.ident.clone().unwrap();
         let ty = field.ty.clone();
+        let attrs = field.attrs.clone(); // <-- capturamos los atributos aquí
 
-        let info = FieldInfo { ident: ident.clone(), ty };
+        let info = FieldInfo { ident: ident.clone(), ty, attrs };
 
         if ident == "id" {
             id_field = Some(info);

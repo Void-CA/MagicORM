@@ -1,7 +1,7 @@
 use quote::{quote, format_ident};
 use syn::DeriveInput;
 
-use crate::attrs::MagicConfig;
+use crate::attrs::{FKConfig, MagicConfig};
 use crate::model::ModelInfo;
 
 use crate::crud::{
@@ -15,6 +15,7 @@ pub fn expand_magic_model(
     input: &DeriveInput,
     config: MagicConfig,
     model: ModelInfo,
+    fk_fields: &[FKConfig]
 ) -> proc_macro2::TokenStream {
     let struct_name = &input.ident;
     let vis = &input.vis;

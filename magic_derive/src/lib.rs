@@ -8,23 +8,30 @@ mod model;
 mod expand;
 mod crud;
 
-use attrs::parse_magic_attributes;
+
+use attrs::{parse_model_fks, parse_magic_attributes, FKConfig};
 use model::analyze_model;
 use expand::expand_magic_model;
 
-#[proc_macro_derive(MagicModel, attributes(magic))]
+macro_rules! unwrap_or_ts {
+    ($expr:expr) => {
+        match $expr {
+            Ok(v) => v,
+            Err(err) => return err.to_compile_error().into(),
+        }
+    };
+}
+
+#[proc_macro_derive(MagicModel, attributes(magic, FK))]
 pub fn derive_magic_model(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
 
-    let config = match parse_magic_attributes(&input) {
-        Ok(cfg) => cfg,
-        Err(err) => return err.to_compile_error().into(),
-    };
+    let config = unwrap_or_ts!(parse_magic_attributes(&input));
 
-    let model = match analyze_model(&input) {
-        Ok(model) => model,
-        Err(err) => return err.to_compile_error().into(),
-    };
+    let model = unwrap_or_ts!(analyze_model(&input));
 
-    expand_magic_model(&input, config, model).into()
+    let fk_fields= unwrap_or_ts!(parse_model_fks(&model));
+
+    expand_magic_model(&input, config, model, &fk_fields).into()
 }
+

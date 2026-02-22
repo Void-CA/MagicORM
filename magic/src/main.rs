@@ -19,7 +19,7 @@ pub struct Post {
     pub title: String,
     pub content: String,
 }
-
+    
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     // Base de datos en disco (archivo "test.db")
