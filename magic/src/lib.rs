@@ -2,7 +2,7 @@ pub use magic_derive::MagicModel;
 
 #[derive(MagicModel)]
 #[magic(table = "users")]
-pub struct User {
+struct User {
     pub id: i64,
     pub name: String,
     pub email: String,
