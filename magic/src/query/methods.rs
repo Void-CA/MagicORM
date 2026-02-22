@@ -85,14 +85,22 @@ where
             .await
     }
 
-    pub async fn fetch_one(self, pool: &sqlx::SqlitePool) -> sqlx::Result<Option<T>> {
+    pub async fn fetch_one(self, pool: &sqlx::SqlitePool) -> sqlx::Result<T> {
+        let sql = self.build_sql();
+
+        sqlx::query_as::<_, T>(&sql)
+            .fetch_one(pool)
+            .await
+    }
+
+    pub async fn fetch_optional(self, pool: &sqlx::SqlitePool) -> sqlx::Result<Option<T>> {
         let sql = self.build_sql();
 
         sqlx::query_as::<_, T>(&sql)
             .fetch_optional(pool)
             .await
     }
-
+    
     fn build_sql(&self) -> String {
         let mut sql = if self.select_columns.is_empty() {
             format!("SELECT * FROM {}", T::TABLE)
