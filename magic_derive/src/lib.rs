@@ -3,12 +3,12 @@ extern crate proc_macro;
 use proc_macro::TokenStream;
 use syn::{parse_macro_input, DeriveInput};
 
-mod attributes;
+mod attrs;
 mod model;
 mod expand;
 mod crud;
 
-use attributes::parse_magic_attributes;
+use attrs::parse_magic_attributes;
 use model::analyze_model;
 use expand::expand_magic_model;
 

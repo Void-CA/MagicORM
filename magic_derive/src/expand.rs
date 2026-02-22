@@ -1,7 +1,7 @@
 use quote::{quote, format_ident};
 use syn::DeriveInput;
 
-use crate::attributes::MagicConfig;
+use crate::attrs::MagicConfig;
 use crate::model::ModelInfo;
 
 use crate::crud::{
