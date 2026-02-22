@@ -1,6 +1,7 @@
 pub use magic_derive::MagicModel;
 
 #[derive(MagicModel)]
+#[magic(table = "users")]
 pub struct User {
     pub id: i64,
     pub name: String,
