@@ -152,7 +152,7 @@ fn generate_model_meta_impl(
         quote! {
             ::magic::meta::ForeignKeyMeta {
                 field: #field_name,
-                related_table: <#related_model as ::magic::meta::ModelMeta>::table,
+                related_table: <#related_model as ::magic::meta::ModelMeta>::TABLE,
                 related_column: #related_column,
             }
         }
@@ -160,15 +160,23 @@ fn generate_model_meta_impl(
 
     quote! {
         impl ::magic::meta::ModelMeta for #struct_name {
-            fn table() -> &'static str {
-                Self::TABLE
-            }
+            const TABLE: &'static str = Self::TABLE;
 
             fn foreign_keys() -> &'static [::magic::meta::ForeignKeyMeta] {
                 static FK_META: &[::magic::meta::ForeignKeyMeta] = &[
                     #( #fk_meta, )*
                 ];
                 FK_META
+            }
+        }
+
+        impl #struct_name {
+            pub fn table() -> &'static str {
+                <Self as ::magic::meta::ModelMeta>::TABLE
+            }
+
+            pub fn foreign_keys() -> &'static [::magic::meta::ForeignKeyMeta] {
+                <Self as ::magic::meta::ModelMeta>::foreign_keys()
             }
         }
     }

@@ -29,16 +29,8 @@ async fn main() -> anyhow::Result<()> {
 
     create_db(&pool).await?;
 
-    let users: Vec<User> = User::query()
-    .join("posts", "users.id = posts.user_id", "LEFT")
-    .select(&["users.id", "users.name", "users.edad", "users.email", "posts.title", "posts.content"])
-    .filter("edad", "=", 30)
-    .fetch_all(&pool)
-    .await?;
-
-    for user in users {
-        println!("{:?}", user);
-    }
+    println!("{:?}", Post::foreign_keys());
+    println!("{:?}", Post::TABLE);
 
     Ok(())
 }
