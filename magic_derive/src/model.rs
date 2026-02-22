@@ -10,6 +10,17 @@ pub struct ModelInfo {
     pub other_fields: Vec<FieldInfo>,
 }
 
+impl ModelInfo {
+    pub fn column_names(&self) -> Vec<String> {
+        let mut names = Vec::new();
+        // Primero el id
+        names.push(self.id_field.ident.to_string());
+        // Luego el resto
+        names.extend(self.other_fields.iter().map(|f| f.ident.to_string()));
+        names
+    }
+}
+
 pub fn analyze_model(input: &DeriveInput) -> syn::Result<ModelInfo> {
     let data = match &input.data {
         Data::Struct(data) => data,

@@ -15,6 +15,7 @@ pub fn expand_magic_model(
 
     let table_name = config.table;
 
+    // Campos para NewStruct
     let new_fields = model.other_fields.iter().map(|f| {
         let ident = &f.ident;
         let ty = &f.ty;
@@ -32,6 +33,11 @@ pub fn expand_magic_model(
         quote! { #ident }
     });
 
+    // Columnas: id primero
+    let column_names: Vec<String> = std::iter::once(model.id_field.ident.to_string())
+        .chain(model.other_fields.iter().map(|f| f.ident.to_string()))
+        .collect();
+
     quote! {
         #vis struct #new_struct_name {
             #( #new_fields, )*
@@ -44,6 +50,10 @@ pub fn expand_magic_model(
                 #new_struct_name {
                     #( #new_inits, )*
                 }
+            }
+
+            pub fn columns() -> &'static [&'static str] {
+                &[ #( #column_names ),* ]
             }
         }
     }
