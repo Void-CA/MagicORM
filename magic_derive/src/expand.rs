@@ -70,6 +70,11 @@ pub fn expand_magic_model(
                 &[ #( #column_names ),* ]
             }
 
+            pub fn query<'a>() -> ::magic::query::QueryBuilder<'a, Self> {
+                ::magic::query::QueryBuilder::new(Self::TABLE)
+            }
+
+
             #crud_methods
         }
 

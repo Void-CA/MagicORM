@@ -18,8 +18,13 @@ async fn main() -> anyhow::Result<()> {
 
     create_db(&pool).await?;
 
-    let n_deletions = User::delete_by_id(&pool, 19).await?;
-    println!("Deleted {} rows", n_deletions);
+    let users = User::get_all(&pool).await?;
+    for user in users {
+        println!("  - {}: {} años, {}", user.name, user.edad, user.email);
+    }
+
+    let n_deletions = User::delete_all(&pool).await?;
+    println!("Número de usuarios eliminados: {}", n_deletions);
 
 
     Ok(())
