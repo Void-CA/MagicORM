@@ -3,6 +3,8 @@ use syn::DeriveInput;
 
 use crate::attributes::MagicConfig;
 use crate::model::ModelInfo;
+use crate::crud::{generate_insert};
+
 
 pub fn expand_magic_model(
     input: &DeriveInput,
@@ -38,6 +40,8 @@ pub fn expand_magic_model(
         .chain(model.other_fields.iter().map(|f| f.ident.to_string()))
         .collect();
 
+    let insert_fn = generate_insert(struct_name, &model, &table_name);
+
     quote! {
         #vis struct #new_struct_name {
             #( #new_fields, )*
@@ -55,6 +59,8 @@ pub fn expand_magic_model(
             pub fn columns() -> &'static [&'static str] {
                 &[ #( #column_names ),* ]
             }
+
+            #insert_fn
         }
     }
 }
