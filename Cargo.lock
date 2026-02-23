@@ -695,6 +695,7 @@ dependencies = [
  "async-trait",
  "magic_derive",
  "once_cell",
+ "paste",
  "sqlx",
  "tokio",
 ]

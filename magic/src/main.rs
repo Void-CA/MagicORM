@@ -1,5 +1,6 @@
-use magic::MagicModel;
+use magic::{MagicModel};
 use sqlx::{SqlitePool};
+use magic::has_many;
 
 #[derive(MagicModel, Debug)]
 #[magic(table = "users")]
@@ -21,6 +22,8 @@ pub struct Post {
     #[FK(User)]
     pub user_id: i64,
 }
+
+has_many!(User => Post);
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
