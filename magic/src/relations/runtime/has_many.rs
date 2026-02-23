@@ -1,5 +1,4 @@
 use crate::{meta::ModelMeta, relations::traits::HasFK, traits::Model};
-use sqlx::SqlitePool;
 
 pub async fn load_has_many<P, C>(
     parent: &P,
