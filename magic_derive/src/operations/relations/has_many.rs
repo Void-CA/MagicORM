@@ -17,7 +17,6 @@ pub fn generate_has_many(
             &self,
             pool: &sqlx::SqlitePool
         ) -> sqlx::Result<Vec<#child_ident>> {
-
             magic::relations::load_has_many::<#parent_ident, #child_ident>(
                 self,
                 pool,

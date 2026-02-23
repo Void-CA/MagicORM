@@ -37,18 +37,14 @@ pub fn expand_magic_model(
         quote! { #ident }
     });
 
-    // Columnas: id primero
-    let column_names: Vec<String> = std::iter::once(model.id_field.ident.to_string())
-        .chain(model.other_fields.iter().map(|f| f.ident.to_string()))
-        .collect();
-
     let crud_methods = generate_crud_methods(struct_name, &model, &table_name);
     let newstruct_methods = generate_newstruct_methods(struct_name);
 
     let from_row_impl = generate_from_row_impl(struct_name, &model);
     let model_meta_impl = generate_model_meta_impl(struct_name, fk_fields);
     let relations_methods = generate_relations_methods(struct_name, fk_fields);
-    
+    let model_impl = generate_model_impl(struct_name, &model);
+
     quote! {
         #vis struct #new_struct_name {
             #( #new_fields, )*
@@ -56,7 +52,7 @@ pub fn expand_magic_model(
 
         
         #from_row_impl
-
+        #model_impl
         unsafe impl Send for #struct_name {}
         
         impl Unpin for #struct_name {}
@@ -69,15 +65,6 @@ pub fn expand_magic_model(
                     #( #new_inits, )*
                 }
             }
-
-            pub fn columns() -> &'static [&'static str] {
-                &[ #( #column_names ),* ]
-            }
-
-            pub fn query<'a>() -> ::magic::query::QueryBuilder<'a, Self> {
-                ::magic::query::QueryBuilder::new(Self::TABLE)
-            }
-
 
             #crud_methods
 

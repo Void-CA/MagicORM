@@ -41,7 +41,13 @@ pub fn generate_model_impl(struct_name: &syn::Ident, model: &ModelInfo) -> proc_
             fn id_column() -> &'static str {
                 "id"
             }
-        }
+            
+            fn query<'a>() -> ::magic::query::QueryBuilder<'a, Self> {
+                ::magic::query::QueryBuilder::new(Self::TABLE)
+            }
+
+            fn id(&self) -> &Self::Id { &self.id }
+        }   
     }
 }
 

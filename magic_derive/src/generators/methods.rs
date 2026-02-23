@@ -24,11 +24,11 @@ pub fn generate_crud_methods(struct_name: &syn::Ident, model: &ModelInfo, table_
 }
     
 pub fn generate_relations_methods(struct_name: &syn::Ident, fk_fields: &[FKConfig]) -> proc_macro2::TokenStream {
-    // let has_many_methods = fk_fields.iter().map(|fk| {
-    //     let related_model = &fk.model;
-    //     let fk_column = &fk.column;
-    //     crate::operations::relations::has_many::generate_has_many(struct_name, related_model, fk_column)
-    // });
+    let has_many_methods = fk_fields.iter().map(|fk| {
+        let related_model = &fk.model;
+        let fk_column = &fk.column;
+        crate::operations::relations::has_many::generate_has_many(struct_name, related_model, fk_column)
+    });
 
     let belongs_to_methods = fk_fields.iter().map(|fk| {
         let related_model = &fk.model;
@@ -37,6 +37,7 @@ pub fn generate_relations_methods(struct_name: &syn::Ident, fk_fields: &[FKConfi
     });
 
     quote! {
+        #( #has_many_methods )*
         #( #belongs_to_methods )*
     }
 }

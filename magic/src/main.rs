@@ -1,7 +1,7 @@
 use magic::MagicModel;
 use sqlx::{SqlitePool};
 
-#[derive(MagicModel, Debug)]
+#[derive(MagicModel)]
 #[magic(table = "users")]
 pub struct User {
     pub id: i64,
@@ -11,7 +11,7 @@ pub struct User {
 }
 
 
-#[derive(MagicModel, Debug)]
+#[derive(MagicModel)]
 #[magic(table = "posts")]
 pub struct Post {
     pub id: i64,
@@ -27,8 +27,6 @@ async fn main() -> anyhow::Result<()> {
     // Base de datos en disco (archivo "test.db")
     let pool = SqlitePool::connect("sqlite://test.db").await?;
 
-    let post = Post::query().filter("id", "=", 1).fetch_one(&pool).await?;
-    println!("Post: {:?}", post.user(&pool).await?);
 
     Ok(())
 }
