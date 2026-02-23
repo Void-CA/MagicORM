@@ -1,6 +1,4 @@
-use magic::{MagicModel};
-use sqlx::{SqlitePool};
-use magic::has_many;
+use magic::prelude::*;
 
 #[derive(MagicModel, Debug)]
 #[magic(table = "users")]
@@ -30,8 +28,10 @@ async fn main() -> anyhow::Result<()> {
     // Base de datos en disco (archivo "test.db")
     let pool = SqlitePool::connect("sqlite://test.db").await?;
 
-    create_db(&pool).await?;
-
+    let user = User::query().filter("id", "=", 1).fetch_one(&pool).await?;
+    let posts = user.posts(&pool).await?;
+    println!("User: {:?}", user);
+    println!("Posts: {:?}", posts);
     Ok(())
 }
 

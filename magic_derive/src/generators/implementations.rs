@@ -96,7 +96,7 @@ pub fn generate_model_meta_impl(
 pub fn generate_hasfk_impl(fk_fields: &[crate::attrs::FKConfig], struct_name: &syn::Ident) -> proc_macro2::TokenStream {
     let fk_impls = fk_fields.iter().map(|fk| {
         let parent = &fk.model;
-        let column_name = &fk.column;
+        let column_name = &fk.field_ident.to_string();
 
         quote! {
             impl magic::relations::traits::HasFK<#parent> for #struct_name {
