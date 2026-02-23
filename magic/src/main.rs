@@ -1,7 +1,9 @@
-use magic::MagicModel;
+use magic::relations::load_has_many;
+use magic::{MagicModel, relations::load_belongs_to};
+use magic::traits::Model;
 use sqlx::{SqlitePool};
 
-#[derive(MagicModel)]
+#[derive(MagicModel, Debug)]
 #[magic(table = "users")]
 pub struct User {
     pub id: i64,
@@ -11,7 +13,7 @@ pub struct User {
 }
 
 
-#[derive(MagicModel)]
+#[derive(MagicModel, Debug)]
 #[magic(table = "posts")]
 pub struct Post {
     pub id: i64,
@@ -27,6 +29,7 @@ async fn main() -> anyhow::Result<()> {
     // Base de datos en disco (archivo "test.db")
     let pool = SqlitePool::connect("sqlite://test.db").await?;
 
+    create_db(&pool).await?;
 
     Ok(())
 }
