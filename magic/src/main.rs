@@ -1,6 +1,4 @@
-use magic::relations::load_has_many;
-use magic::{MagicModel, relations::load_belongs_to};
-use magic::traits::Model;
+use magic::MagicModel;
 use sqlx::{SqlitePool};
 
 #[derive(MagicModel, Debug)]

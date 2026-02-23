@@ -42,7 +42,6 @@ pub fn expand_magic_model(
 
     let from_row_impl = generate_from_row_impl(struct_name, &model);
     let model_meta_impl = generate_model_meta_impl(struct_name, fk_fields);
-    let relations_methods = generate_relations_methods(struct_name, fk_fields);
     let model_impl = generate_model_impl(struct_name, &model);
 
     quote! {
@@ -68,7 +67,6 @@ pub fn expand_magic_model(
 
             #crud_methods
 
-            #relations_methods
         }
 
         #newstruct_methods
