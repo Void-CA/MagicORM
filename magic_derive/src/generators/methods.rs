@@ -32,19 +32,3 @@ pub fn generate_newstruct_methods(struct_name: &syn::Ident) -> proc_macro2::Toke
     }
 }
 
-pub fn generate_fk_methods(fk_fields: &[crate::attrs::FKConfig]) -> proc_macro2::TokenStream {
-    let fk_methods = fk_fields.iter().map(|fk| {
-        let parent = &fk.model;         // nombre del padre, ej: User
-        let column_name = &fk.column;   // nombre de la columna, ej: "user_id"
-        let method_name = quote::format_ident!("fk_for_{}", parent.to_string().to_lowercase());
-
-        quote! {
-            pub fn #method_name<P>() -> &'static str {
-                #column_name
-            }
-        }
-    });
-    quote! {
-        #( #fk_methods )*
-    }
-}

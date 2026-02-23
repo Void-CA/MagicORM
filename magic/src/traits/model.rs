@@ -1,6 +1,4 @@
-use async_trait::async_trait;
-
-use crate::meta::ModelMeta;
+use crate::{meta::ModelMeta, relations::traits::HasFK};
 
 pub trait Model: Sized + Send {
     type Id: Send + std::fmt::Display;
@@ -19,16 +17,12 @@ pub trait BelongsTo<P: Model>: Model {
     fn foreign_key() -> &'static str;
 }
 
-#[async_trait]
+#[async_trait::async_trait]
 pub trait HasMany<C>: Model
 where
-    C: BelongsTo<Self> + ModelMeta + Send + Unpin + for<'r> sqlx::FromRow<'r, sqlx::sqlite::SqliteRow>,
+    C: Model + ModelMeta + HasFK<Self> + Send + Unpin + for<'r> sqlx::FromRow<'r, sqlx::sqlite::SqliteRow>,
 {
-    async fn load_children<'a>(
-        &self,
-        pool: &'a sqlx::SqlitePool,
-        fk_column: &str,
-    ) -> sqlx::Result<Vec<C>> {
-        crate::relations::load_has_many::<Self, C>(self, pool, fk_column).await
+    async fn load_children<'a>(&self, pool: &'a sqlx::SqlitePool) -> anyhow::Result<Vec<C>> {
+        crate::relations::runtime::has_many::load_has_many::<Self, C>(self, pool).await
     }
 }

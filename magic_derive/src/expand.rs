@@ -43,7 +43,7 @@ pub fn expand_magic_model(
     let from_row_impl = generate_from_row_impl(struct_name, &model);
     let model_meta_impl = generate_model_meta_impl(struct_name, fk_fields);
     let model_impl = generate_model_impl(struct_name, &model);
-    let fk_methods = generate_fk_methods(fk_fields);
+    let hasfk_impl = generate_hasfk_impl(fk_fields, struct_name);
     
 
     quote! {
@@ -69,12 +69,11 @@ pub fn expand_magic_model(
 
             #crud_methods
 
-            #fk_methods
         }
-
         #newstruct_methods
 
         #model_meta_impl
+        #hasfk_impl
     }
 }
 

@@ -1,16 +1,20 @@
-use crate::{meta::ModelMeta, traits::Model};
+use crate::{meta::ModelMeta, relations::traits::HasFK, traits::Model};
+use sqlx::SqlitePool;
 
 pub async fn load_has_many<P, C>(
     parent: &P,
     pool: &sqlx::SqlitePool,
-    fk_column: &str
-) -> sqlx::Result<Vec<C>>
+) -> anyhow::Result<Vec<C>>
 where
     P: Model,
-    C: Model + ModelMeta + for<'r> sqlx::FromRow<'r, sqlx::sqlite::SqliteRow> + Send + Unpin,
+    C: Model + ModelMeta + HasFK<P> + for<'r> sqlx::FromRow<'r, sqlx::sqlite::SqliteRow> + Send + Unpin,
 {
-    C::query()
+    let fk_column = C::fk_for_parent();
+    let rows = C::query()
         .filter(fk_column, "=", parent.id())
         .fetch_all(pool)
         .await
+        .map_err(|e| anyhow::anyhow!(e))?; // convertimos sqlx::Error → anyhow::Error
+
+    Ok(rows)
 }
