@@ -1,8 +1,7 @@
 #[macro_export]
 macro_rules! has_many {
     ($model:ident => $($child:ident),+ $(,)?) => {
-        use paste::paste;
-        paste! {
+        ::paste::paste! {
             // 1. Crear struct de relaciones (solo si quieres introspección)
             pub struct [<$model Relations>];
 
