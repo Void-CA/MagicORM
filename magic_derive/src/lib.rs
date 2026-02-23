@@ -7,6 +7,7 @@ mod attrs;
 mod model;
 mod expand;
 mod operations;
+mod generators;
 
 
 use attrs::{parse_model_fks, parse_magic_attributes};

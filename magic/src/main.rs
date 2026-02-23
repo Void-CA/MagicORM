@@ -27,17 +27,8 @@ async fn main() -> anyhow::Result<()> {
     // Base de datos en disco (archivo "test.db")
     let pool = SqlitePool::connect("sqlite://test.db").await?;
 
-    create_db(&pool).await?;
-
-    let users = User::query()
-    .join::<Post>()
-    .fetch_all(&pool)
-    .await?;
-
-    for user in  users {
-        println!("{:?}", user);
-        
-    }
+    let post = Post::query().filter("id", "=", 1).fetch_one(&pool).await?;
+    println!("Post: {:?}", post.user(&pool).await?);
 
     Ok(())
 }
