@@ -27,7 +27,7 @@ pub fn generate_model_impl(struct_name: &syn::Ident, model: &ModelInfo) -> proc_
     let id_type = &model.id_field.ty;
 
     quote! {
-        impl ::magic::traits::Model for #struct_name {
+        impl ::magic_orm::traits::Model for #struct_name {
             type Id = #id_type;
 
             fn table_name() -> &'static str {
@@ -42,8 +42,8 @@ pub fn generate_model_impl(struct_name: &syn::Ident, model: &ModelInfo) -> proc_
                 "id"
             }
             
-            fn query<'a>() -> ::magic::query::QueryBuilder<'a, Self> {
-                ::magic::query::QueryBuilder::new(Self::TABLE)
+            fn query<'a>() -> ::magic_orm::query::QueryBuilder<'a, Self> {
+                ::magic_orm::query::QueryBuilder::new(Self::TABLE)
             }
 
             fn id(&self) -> &Self::Id { &self.id }
@@ -61,20 +61,20 @@ pub fn generate_model_meta_impl(
         let related_column = &fk.column;
 
         quote! {
-            ::magic::meta::ForeignKeyMeta {
+            ::magic_orm::meta::ForeignKeyMeta {
                 field: #field_name,
-                related_table: <#related_model as ::magic::meta::ModelMeta>::TABLE,
+                related_table: <#related_model as ::magic_orm::meta::ModelMeta>::TABLE,
                 related_column: #related_column,
             }
         }
     });
 
     quote! {
-        impl ::magic::meta::ModelMeta for #struct_name {
+        impl ::magic_orm::meta::ModelMeta for #struct_name {
             const TABLE: &'static str = Self::TABLE;
 
-            fn foreign_keys() -> &'static [::magic::meta::ForeignKeyMeta] {
-                static FK_META: &[::magic::meta::ForeignKeyMeta] = &[
+            fn foreign_keys() -> &'static [::magic_orm::meta::ForeignKeyMeta] {
+                static FK_META: &[::magic_orm::meta::ForeignKeyMeta] = &[
                     #( #fk_meta, )*
                 ];
                 FK_META
@@ -83,11 +83,11 @@ pub fn generate_model_meta_impl(
 
         impl #struct_name {
             pub fn table() -> &'static str {
-                <Self as ::magic::meta::ModelMeta>::TABLE
+                <Self as ::magic_orm::meta::ModelMeta>::TABLE
             }
 
-            pub fn foreign_keys() -> &'static [::magic::meta::ForeignKeyMeta] {
-                <Self as ::magic::meta::ModelMeta>::foreign_keys()
+            pub fn foreign_keys() -> &'static [::magic_orm::meta::ForeignKeyMeta] {
+                <Self as ::magic_orm::meta::ModelMeta>::foreign_keys()
             }
         }
     }
@@ -99,7 +99,7 @@ pub fn generate_hasfk_impl(fk_fields: &[crate::attrs::FKConfig], struct_name: &s
         let column_name = &fk.field_ident.to_string();
 
         quote! {
-            impl magic::relations::traits::HasFK<#parent> for #struct_name {
+            impl magic_orm::relations::traits::HasFK<#parent> for #struct_name {
                 fn fk_for_parent() -> &'static str {
                     #column_name
                 }

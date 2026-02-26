@@ -1,4 +1,4 @@
-use magic::prelude::*;
+use magic_orm::prelude::*;
 
 #[derive(MagicModel, Debug)]
 #[magic(table = "users")]
