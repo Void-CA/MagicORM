@@ -1,5 +1,4 @@
 use magic_orm::{prelude::*, register_models};
-use magic_orm::meta::ModelMeta;
 
 #[derive(MagicModel, Debug)]
 #[magic(table = "users")]

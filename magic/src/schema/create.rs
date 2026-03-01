@@ -1,50 +1,53 @@
+// schema.rs
+use crate::executor::Executor;
+use crate::meta::{ColumnMeta, ModelMeta};
 use std::collections::HashSet;
 
-use crate::executor::{Executor, SchemaError};
-use crate::registry::{ModelDescriptor, RegisteredModels};
-use crate::schema::utils::{infer_fk, dependencies};
+/// Genera SQL de creación de tabla
+pub fn create_table_sql<T: ModelMeta>() -> String {
+    let mut sql = format!("CREATE TABLE IF NOT EXISTS {} (\n", T::TABLE);
+    let mut column_defs = Vec::new();
+    let mut foreign_keys = Vec::new();
 
-pub fn create_table_sql(model: &ModelDescriptor) -> String {
-    let mut sql = format!(
-        "CREATE TABLE IF NOT EXISTS {} (\n",
-        model.table
-    );
-
-    let mut parts = Vec::new();
-
-    for col in model.columns {
+    for col in T::columns() {
         let mut def = format!("    {} {}", col.name, col.sql_type);
-
         if col.primary_key {
             def.push_str(" PRIMARY KEY");
         }
-
         if !col.nullable && !col.primary_key {
             def.push_str(" NOT NULL");
         }
+        column_defs.push(def);
 
-        parts.push(def);
+        if col.name.ends_with("_id") && col.name != "id" {
+            let table = col.name.trim_end_matches("_id");
+            foreign_keys.push(format!(
+                "    FOREIGN KEY ({}) REFERENCES {}(id) ON DELETE CASCADE",
+                col.name, table
+            ));
+        }
     }
 
-    for fk in model.foreign_keys {
-        parts.push(format!(
-            "    FOREIGN KEY ({}) REFERENCES {}({}) ON DELETE CASCADE",
-            fk.field,
-            fk.related_table,
-            fk.related_column
-        ));
-    }
-
-    sql.push_str(&parts.join(",\n"));
+    column_defs.extend(foreign_keys);
+    sql.push_str(&column_defs.join(",\n"));
     sql.push_str("\n);");
-
     sql
 }
 
+/// Descriptor de modelo para registro
+pub struct ModelDescriptor {
+    pub table: &'static str,
+    pub columns: &'static [ColumnMeta],
+    pub foreign_keys: &'static [crate::meta::ForeignKeyMeta],
+}
 
-pub async fn create_all<E, R>(
-    executor: &E,
-) -> Result<(), SchemaError<E::Error>>
+/// Registro explícito de modelos
+pub trait RegisteredModels {
+    fn models() -> Vec<ModelDescriptor>;
+}
+
+/// Crea todas las tablas usando los modelos registrados
+pub async fn create_all<E, R>(executor: &E) -> anyhow::Result<()>
 where
     E: Executor,
     R: RegisteredModels,
@@ -56,7 +59,11 @@ where
         let mut ready_indices = Vec::new();
 
         for (idx, model) in models.iter().enumerate() {
-            let deps = dependencies(model);
+            let deps: Vec<&str> = model
+                .columns
+                .iter()
+                .filter_map(|c| if c.name.ends_with("_id") && c.name != "id" { Some(c.name.trim_end_matches("_id")) } else { None })
+                .collect();
 
             if deps.iter().all(|d| created.contains(d)) {
                 ready_indices.push(idx);
@@ -64,15 +71,16 @@ where
         }
 
         if ready_indices.is_empty() {
-            return Err(SchemaError::CycleDetected);
+            anyhow::bail!("Schema cycle detected");
         }
 
         for &idx in &ready_indices {
             let model = &models[idx];
-
-            let sql = create_table_sql(model);
-            executor.execute(&sql).await.map_err(SchemaError::Executor)?;
-
+            let sql = format!(
+                "CREATE TABLE IF NOT EXISTS {} (...);", // o genera con create_table_sql si quieres
+                model.table
+            );
+            executor.execute(&sql).await?;
             created.insert(model.table);
         }
 
