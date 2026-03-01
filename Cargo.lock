@@ -697,12 +697,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "magic_derive"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2b2a09c32aaa8389cf50b468a5a61e0858bfb5d3d32a84d6e2191a40272ae6c2"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.117",
+]
+
+[[package]]
 name = "magic_orm"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
- "magic_derive",
+ "magic_derive 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "once_cell",
  "paste",
  "sqlx",
