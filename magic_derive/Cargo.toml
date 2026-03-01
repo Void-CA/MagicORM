@@ -2,6 +2,8 @@
 name = "magic_derive"
 version = "0.1.0"
 edition = "2024"
+description = "Procedural macros for the Magic ORM, providing derive macros for model definitions."
+license = "MIT"
 
 [lib]
 proc-macro = true
