@@ -1,6 +1,7 @@
 // schema.rs
 use crate::executor::Executor;
 use crate::meta::{ColumnMeta, ModelMeta};
+use crate::schema::RegisteredModels;
 use std::collections::HashSet;
 
 /// Genera SQL de creación de tabla
@@ -32,18 +33,6 @@ pub fn create_table_sql<T: ModelMeta>() -> String {
     sql.push_str(&column_defs.join(",\n"));
     sql.push_str("\n);");
     sql
-}
-
-/// Descriptor de modelo para registro
-pub struct ModelDescriptor {
-    pub table: &'static str,
-    pub columns: &'static [ColumnMeta],
-    pub foreign_keys: &'static [crate::meta::ForeignKeyMeta],
-}
-
-/// Registro explícito de modelos
-pub trait RegisteredModels {
-    fn models() -> Vec<ModelDescriptor>;
 }
 
 /// Crea todas las tablas usando los modelos registrados

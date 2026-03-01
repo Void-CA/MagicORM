@@ -1,6 +1,5 @@
-use crate::meta::ModelMeta;
 
-use crate::registry::ModelDescriptor;
+use crate::schema::ModelDescriptor;
 
 pub fn dependencies(model: &ModelDescriptor) -> Vec<&'static str> {
     model
