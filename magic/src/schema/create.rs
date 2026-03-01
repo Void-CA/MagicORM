@@ -1,6 +1,6 @@
 // schema.rs
 use crate::executor::Executor;
-use crate::meta::{ColumnMeta, ModelMeta};
+use crate::meta::ModelMeta;
 use crate::schema::RegisteredModels;
 use std::collections::HashSet;
 

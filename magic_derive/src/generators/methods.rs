@@ -32,7 +32,7 @@ pub fn generate_newstruct_methods(struct_name: &syn::Ident) -> proc_macro2::Toke
     }
 }
 
-pub fn generate_registry_method(struct_name: &syn::Ident) -> proc_macro2::TokenStream {
+pub fn generate_registry_method(_struct_name: &syn::Ident) -> proc_macro2::TokenStream {
     quote! {
         pub fn descriptor() -> ::magic_orm::schema::ModelDescriptor {
             ::magic_orm::schema::ModelDescriptor {
