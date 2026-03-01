@@ -1,4 +1,5 @@
 use crate::{attrs::FKConfig, model::ModelInfo};
+use crate::generators::utils::model_meta::{map_rust_to_sqlite, is_option};
 use quote::{quote};
 
 pub fn generate_from_row_impl(struct_name: &syn::Ident, model: &ModelInfo) -> proc_macro2::TokenStream {
@@ -23,7 +24,7 @@ pub fn generate_from_row_impl(struct_name: &syn::Ident, model: &ModelInfo) -> pr
     }
 }
 
-pub fn generate_model_impl(struct_name: &syn::Ident, model: &ModelInfo) -> proc_macro2::TokenStream {
+pub fn generate_model_impl(struct_name: &syn::Ident, model: &ModelInfo, column_names: Vec<String>) -> proc_macro2::TokenStream {
     let id_type = &model.id_field.ty;
 
     quote! {
@@ -35,7 +36,10 @@ pub fn generate_model_impl(struct_name: &syn::Ident, model: &ModelInfo) -> proc_
             }
 
             fn columns() -> &'static [&'static str] {
-                Self::columns()
+                static COLUMNS: &[&str] = &[
+                    #( #column_names, )*
+                ];
+                COLUMNS
             }
 
             fn id_column() -> &'static str {
@@ -54,6 +58,8 @@ pub fn generate_model_impl(struct_name: &syn::Ident, model: &ModelInfo) -> proc_
 pub fn generate_model_meta_impl(
     struct_name: &syn::Ident,
     fk_fields: &[FKConfig],
+    model: &ModelInfo,
+    table_name: &str
 ) -> proc_macro2::TokenStream {
     let fk_meta = fk_fields.iter().map(|fk| {
         let field_name = fk.field_ident.to_string();
@@ -69,9 +75,37 @@ pub fn generate_model_meta_impl(
         }
     });
 
+    let columns_meta = std::iter::once(&model.id_field)
+    .chain(model.other_fields.iter())
+    .map(|f| {
+        let name = f.ident.to_string();
+
+        let sql_type = map_rust_to_sqlite(&f.ty);
+        let nullable = is_option(&f.ty);
+
+        let is_pk = f.ident == model.id_field.ident;
+
+        quote! {
+            ::magic_orm::meta::ColumnMeta {
+                name: #name,
+                sql_type: #sql_type,
+                nullable: #nullable,
+                primary_key: #is_pk,
+            }
+        }
+    });
+
     quote! {
         impl ::magic_orm::meta::ModelMeta for #struct_name {
-            const TABLE: &'static str = Self::TABLE;
+            const TABLE: &'static str = #table_name;
+
+
+            fn columns() -> &'static [::magic_orm::meta::ColumnMeta] {
+                static COLUMNS: &[::magic_orm::meta::ColumnMeta] = &[
+                    #( #columns_meta, )*
+                ];
+                COLUMNS
+            }
 
             fn foreign_keys() -> &'static [::magic_orm::meta::ForeignKeyMeta] {
                 static FK_META: &[::magic_orm::meta::ForeignKeyMeta] = &[
@@ -89,6 +123,7 @@ pub fn generate_model_meta_impl(
             pub fn foreign_keys() -> &'static [::magic_orm::meta::ForeignKeyMeta] {
                 <Self as ::magic_orm::meta::ModelMeta>::foreign_keys()
             }
+
         }
     }
 }

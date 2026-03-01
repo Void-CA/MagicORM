@@ -18,6 +18,9 @@ pub fn expand_magic_model(
     let new_struct_name = format_ident!("New{}", struct_name);
 
     let table_name = config.table;
+    let column_names = std::iter::once(&model.id_field.ident)
+    .chain(model.other_fields.iter().map(|f| &f.ident))
+    .map(|i| i.to_string());
 
     // Campos para NewStruct
     let new_fields = model.other_fields.iter().map(|f| {
@@ -41,8 +44,8 @@ pub fn expand_magic_model(
     let newstruct_methods = generate_newstruct_methods(struct_name);
 
     let from_row_impl = generate_from_row_impl(struct_name, &model);
-    let model_meta_impl = generate_model_meta_impl(struct_name, fk_fields);
-    let model_impl = generate_model_impl(struct_name, &model);
+    let model_meta_impl = generate_model_meta_impl(struct_name, fk_fields, &model, &table_name);
+    let model_impl = generate_model_impl(struct_name, &model, column_names.collect());
     let hasfk_impl = generate_hasfk_impl(fk_fields, struct_name);
     
 
