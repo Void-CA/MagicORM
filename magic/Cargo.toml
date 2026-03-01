@@ -1,6 +1,6 @@
 [package]
 name = "magic_orm"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2024"
 description = "A Rust ORM for SQL databases with a focus on ease of use and performance."
 license = "MIT"
