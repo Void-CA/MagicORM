@@ -39,13 +39,13 @@ pub fn expand_magic_model(
 
     let crud_methods = generate_crud_methods(struct_name, &model, &table_name);
     let newstruct_methods = generate_newstruct_methods(struct_name);
+    let other_methods = generate_registry_method(struct_name);
 
     let from_row_impl = generate_from_row_impl(struct_name, &model);
     let model_meta_impl = generate_model_meta_impl(struct_name, fk_fields, &model, &table_name);
     let model_impl = generate_model_impl(struct_name, &model);
     let hasfk_impl = generate_hasfk_impl(fk_fields, struct_name);
     
-
     quote! {
         #vis struct #new_struct_name {
             #( #new_fields, )*
@@ -65,12 +65,14 @@ pub fn expand_magic_model(
             }
 
             #crud_methods
-
+            
+            #other_methods
         }
         #newstruct_methods
 
         #model_meta_impl
         #hasfk_impl
+
     }
 }
 
