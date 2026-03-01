@@ -1,16 +1,25 @@
 use crate::{meta::ModelMeta, relations::traits::HasFK};
 
-pub trait Model: Sized + Send {
+use sqlx::{FromRow, sqlite::SqliteRow};
+
+pub trait Model:
+    ModelMeta
+    + Sized
+    + Send
+    + Unpin
+    + for<'r> FromRow<'r, SqliteRow>
+{
     type Id: Send + std::fmt::Display;
 
-    fn table_name() -> &'static str;
-    fn columns() -> &'static [&'static str];
+    fn id(&self) -> &Self::Id;
+
+    fn query<'a>() -> crate::query::QueryBuilder<'a, Self> {
+        crate::query::QueryBuilder::new(Self::TABLE)
+    }
+
     fn id_column() -> &'static str {
         "id"
     }
-
-    fn query<'a>() -> crate::query::QueryBuilder<'a, Self>;
-    fn id(&self) -> &Self::Id;
 }
 
 pub trait BelongsTo<P: Model>: Model {

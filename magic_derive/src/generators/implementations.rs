@@ -24,23 +24,12 @@ pub fn generate_from_row_impl(struct_name: &syn::Ident, model: &ModelInfo) -> pr
     }
 }
 
-pub fn generate_model_impl(struct_name: &syn::Ident, model: &ModelInfo, column_names: Vec<String>) -> proc_macro2::TokenStream {
+pub fn generate_model_impl(struct_name: &syn::Ident, model: &ModelInfo) -> proc_macro2::TokenStream {
     let id_type = &model.id_field.ty;
 
     quote! {
         impl ::magic_orm::traits::Model for #struct_name {
             type Id = #id_type;
-
-            fn table_name() -> &'static str {
-                Self::TABLE
-            }
-
-            fn columns() -> &'static [&'static str] {
-                static COLUMNS: &[&str] = &[
-                    #( #column_names, )*
-                ];
-                COLUMNS
-            }
 
             fn id_column() -> &'static str {
                 "id"
