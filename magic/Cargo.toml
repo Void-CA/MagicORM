@@ -1,6 +1,6 @@
 [package]
 name = "magic_orm"
-version = "0.1.2"
+version = "0.1.3"
 edition = "2024"
 description = "A Rust ORM for SQL databases with a focus on ease of use and performance."
 license = "MIT"
@@ -10,7 +10,7 @@ sqlx = { version = "0.8.6", features = ["postgres", "runtime-tokio", "macros"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 once_cell = "1"
 async-trait = "0.1"
-magic_derive = { path = "../magic_derive" }
+magic_derive = "0.1.1"
 anyhow = "1.0.102"
 paste = "1.0"
 

@@ -1,0 +1,8 @@
+[package]
+name = "magic_cli"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+clap = "4.5.60"
+magic_orm = { version = "0.1.2", path = "../magic" }

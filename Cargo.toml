@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
 members = [
-    "magic",
+    "magic", "magic_cli",
     "magic_derive"
 ]
