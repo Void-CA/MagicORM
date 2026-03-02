@@ -5,7 +5,7 @@ pub mod traits;
 pub mod prelude;
 pub mod schema;
 pub mod executor;
-pub mod registry;
+pub mod registry;   
 
 pub use magic_derive::MagicModel;
 

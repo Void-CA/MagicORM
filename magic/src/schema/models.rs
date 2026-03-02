@@ -1,6 +1,8 @@
 use crate::meta::ColumnMeta;
+use serde::Serialize;
 
 /// Descriptor de modelo para registro
+#[derive(Serialize, Debug)]
 pub struct ModelDescriptor {
     pub table: &'static str,
     pub columns: &'static [ColumnMeta],
