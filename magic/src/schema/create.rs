@@ -20,12 +20,13 @@ pub fn create_table_sql<T: ModelMeta>() -> String {
         }
         column_defs.push(def);
 
-        if col.name.ends_with("_id") && col.name != "id" {
-            let table = col.name.trim_end_matches("_id");
-            foreign_keys.push(format!(
-                "    FOREIGN KEY ({}) REFERENCES {}(id) ON DELETE CASCADE",
-                col.name, table
-            ));
+        for fk in T::foreign_keys() {
+            if fk.field == col.name {
+                foreign_keys.push(format!(
+                    "    FOREIGN KEY({}) REFERENCES {}({})",
+                    fk.field, fk.related_table, fk.related_column
+                ));
+            }
         }
     }
 
