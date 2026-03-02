@@ -47,12 +47,9 @@ async fn main() -> anyhow::Result<()> {
         .execute(&pool)
         .await?;
 
-    let sql = magic_orm::schema::create_table_sql::<User>();
-    println!("SQL para User:\n{}", sql);
-    let sql = magic_orm::schema::create_table_sql::<Post>();
-    println!("SQL para Post:\n{}", sql);
-    let sql = magic_orm::schema::create_table_sql::<Reaction>();
-    println!("SQL para Reaction:\n{}", sql);
+    
+    create_all::<SqlitePool, AppModels>(&pool).await?;
+    
     Ok(())
 }
 
