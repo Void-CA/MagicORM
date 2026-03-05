@@ -100,7 +100,6 @@ where
         for &idx in &ready_indices {
             let model = &models[idx];
             let sql = create_table_sql_from_descriptor(model);
-            println!("Ejecutando SQL para {}:\n{}", model.table, sql); // debug
             executor.execute(&sql).await?;
             created.insert(model.table);
         }
