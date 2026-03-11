@@ -13,6 +13,7 @@ pub use crate::MagicModel;
 
 // Schema utilities
 pub use crate::schema::create_all;
+pub use crate::schema::create::create_table_sql;
 
 // External dependencies
 pub use anyhow::Error;

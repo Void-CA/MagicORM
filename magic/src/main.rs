@@ -49,7 +49,6 @@ async fn main() -> anyhow::Result<()> {
 
     
     create_all::<SqlitePool, AppModels>(&pool).await?;
-    
     Ok(())
 }
 
