@@ -3,16 +3,12 @@ extern crate proc_macro;
 use proc_macro::TokenStream;
 use syn::{parse_macro_input, DeriveInput};
 
-mod attrs;
-mod model;
-mod expand;
-mod operations;
-mod generators;
+pub(crate) mod input;
+pub(crate) mod codegen;
+pub(crate) mod operations;
 
-
-use attrs::{parse_model_fks, parse_magic_attributes};
-use model::analyze_model;
-use expand::expand_magic_model;
+use input::{analyze_model, attrs::{parse_model_fks, parse_magic_attributes}};
+use codegen::expand_magic_model;
 
 macro_rules! unwrap_or_ts {
     ($expr:expr) => {

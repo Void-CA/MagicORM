@@ -1,7 +1,7 @@
-pub mod insert;
-pub mod put;
-pub mod get;
-pub mod delete;
+pub(crate) mod insert;
+pub(crate) mod put;
+pub(crate) mod get;
+pub(crate) mod delete;
 
 pub use insert::{generate_insert, generate_newstruct_insert};
 pub use put::{generate_put, generate_newstruct_put};

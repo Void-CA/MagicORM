@@ -1,6 +1,7 @@
 pub mod create;
 pub mod utils;
-mod models;
 
-pub use models::*;
+// ModelDescriptor y RegisteredModels viven en model::descriptor;
+// los re-exportamos aquí para mantener compatibilidad de paths existentes.
+pub use crate::model::{ModelDescriptor, RegisteredModels};
 pub use create::*;

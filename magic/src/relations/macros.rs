@@ -19,7 +19,7 @@ macro_rules! has_many {
             impl $model {
                 $(
                     pub async fn [<$child:snake s>](&self, pool: &sqlx::SqlitePool) -> anyhow::Result<Vec<$child>> {
-                        $crate::relations::runtime::has_many::load_has_many::<$model, $child>(self, pool).await
+                        $crate::relations::loaders::has_many::load_has_many::<$model, $child>(self, pool).await
                     }
                 )+
             }

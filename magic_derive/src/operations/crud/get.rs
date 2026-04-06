@@ -1,9 +1,13 @@
-use crate::model::ModelInfo;
+use crate::input::ModelInfo;
 use proc_macro2::Literal;
-use quote::{quote};
+use quote::quote;
 use syn::{Ident, LitStr};
 
-pub fn generate_get(struct_name: &Ident, model: &ModelInfo, table_name: &str) -> proc_macro2::TokenStream {
+pub fn generate_get(
+    struct_name: &Ident,
+    model: &ModelInfo,
+    table_name: &str,
+) -> proc_macro2::TokenStream {
     let struct_name = struct_name;
     let all_columns: Vec<String> = model.column_names();
     let all_columns_literal = LitStr::new(&all_columns.join(", "), proc_macro2::Span::call_site());
@@ -25,14 +29,18 @@ pub fn generate_get(struct_name: &Ident, model: &ModelInfo, table_name: &str) ->
     }
 }
 
-pub fn generate_get_by_id(struct_name: &Ident, model: &ModelInfo, table_name: &str) -> proc_macro2::TokenStream {
+pub fn generate_get_by_id(
+    struct_name: &Ident,
+    model: &ModelInfo,
+    table_name: &str,
+) -> proc_macro2::TokenStream {
     let all_columns: Vec<String> = model.column_names();
     let all_columns_literal = Literal::string(&all_columns.join(", "));
 
     quote! {
         pub async fn get_by_id(pool: &sqlx::SqlitePool, id: i64) -> sqlx::Result<Option<#struct_name>> {
-            let sql = format!("SELECT {} FROM {} WHERE id = ?", 
-                #all_columns_literal, 
+            let sql = format!("SELECT {} FROM {} WHERE id = ?",
+                #all_columns_literal,
                 #table_name
             );
             let row = sqlx::query_as::<_, #struct_name>(&sql)

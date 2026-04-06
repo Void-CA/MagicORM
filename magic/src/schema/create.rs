@@ -1,7 +1,6 @@
 // schema.rs
 use crate::executor::Executor;
-use crate::meta::ModelMeta;
-use crate::schema::{ModelDescriptor, RegisteredModels};
+use crate::model::{ModelMeta, ModelDescriptor, RegisteredModels};
 use std::collections::HashSet;
 
 /// Genera SQL de creación de tabla

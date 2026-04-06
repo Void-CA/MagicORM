@@ -773,7 +773,7 @@ version = "0.1.6"
 dependencies = [
  "anyhow",
  "async-trait",
- "magic_derive 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "magic_derive 0.1.2",
  "once_cell",
  "paste",
  "serde",

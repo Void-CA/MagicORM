@@ -1,1 +1,1 @@
-pub mod crud;
+pub(crate) mod crud;

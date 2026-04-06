@@ -1,8 +1,12 @@
+use crate::input::ModelInfo;
 use quote::{format_ident, quote};
 use syn::Ident;
-use crate::model::ModelInfo;
 
-pub fn generate_insert(struct_name: &Ident, model: &ModelInfo, table_name: &str) -> proc_macro2::TokenStream {
+pub fn generate_insert(
+    struct_name: &Ident,
+    model: &ModelInfo,
+    table_name: &str,
+) -> proc_macro2::TokenStream {
     let idents: Vec<Ident> = model.other_fields.iter().map(|f| f.ident.clone()).collect();
     let column_names: Vec<String> = model.no_id_column_names();
     let new_struct_name = format_ident!("New{}", struct_name);

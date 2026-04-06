@@ -1,4 +1,4 @@
-pub mod methods;
-pub mod model;
+mod builder;
+mod executor; // impl block de QueryBuilder con fetch_all, build_sql, etc.
 
-pub use model::QueryBuilder;
+pub use builder::QueryBuilder;
