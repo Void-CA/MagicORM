@@ -66,8 +66,7 @@ pub fn create_table_sql_from_descriptor(desc: &ModelDescriptor) -> String {
     sql
 }
 
-/// Crea todas las tablas usando los modelos registrados
-pub async fn create_all<E, R>(executor: &E) -> anyhow::Result<()>
+pub async fn create_all<E, R>(executor: &mut E) -> anyhow::Result<()>
 where
     E: Executor,
     R: RegisteredModels,
@@ -78,13 +77,13 @@ where
     while !models.is_empty() {
         let mut ready_indices = Vec::new();
 
-        // 1️⃣ detectar modelos listos (dependencias ya creadas)
+        // 1️⃣ detectar modelos listos
         for (idx, model) in models.iter().enumerate() {
             let deps: Vec<&str> = model
-            .foreign_keys
-            .iter()
-            .map(|fk| fk.related_table)
-            .collect();
+                .foreign_keys
+                .iter()
+                .map(|fk| fk.related_table)
+                .collect();
 
             if deps.iter().all(|d| created.contains(d)) {
                 ready_indices.push(idx);
@@ -95,15 +94,17 @@ where
             anyhow::bail!("Schema cycle detected");
         }
 
-        // 2️⃣ crear tablas listas
+        // 2️⃣ crear tablas
         for &idx in &ready_indices {
             let model = &models[idx];
             let sql = create_table_sql_from_descriptor(model);
+
             executor.execute(&sql).await?;
+
             created.insert(model.table);
         }
 
-        // 3️⃣ eliminar los creados del vector para seguir con los demás
+        // 3️⃣ limpiar
         for &idx in ready_indices.iter().rev() {
             models.remove(idx);
         }

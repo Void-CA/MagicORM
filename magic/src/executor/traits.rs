@@ -4,5 +4,5 @@ use async_trait::async_trait;
 /// Implementado por los adaptadores en `executor::adapters`.
 #[async_trait]
 pub trait Executor {
-    async fn execute(&self, sql: &str) -> anyhow::Result<()>;
+    async fn execute(&mut self, sql: &str) -> anyhow::Result<()>;
 }

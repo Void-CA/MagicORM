@@ -1,15 +1,26 @@
 use async_trait::async_trait;
-use sqlx::SqlitePool;
+use sqlx::{SqlitePool, Sqlite, Transaction};
 use crate::executor::traits::Executor;
 
-/// Adaptador de SQLite: implementa [`Executor`] sobre un pool de conexiones.
 #[async_trait]
 impl Executor for SqlitePool {
-    async fn execute(&self, sql: &str) -> anyhow::Result<()> {
+    async fn execute(&mut self, sql: &str) -> anyhow::Result<()> {
         sqlx::query(sql)
-            .execute(self)
-            .await
-            .map_err(|e| anyhow::anyhow!(e))?;
+            .execute(&*self) 
+            .await?;
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl<'a> Executor for Transaction<'a, Sqlite> {
+    async fn execute(&mut self, sql: &str) -> anyhow::Result<()> {
+        let conn: &mut sqlx::SqliteConnection = &mut *self;
+
+        sqlx::query(sql)
+            .execute(conn)
+            .await?;
+
         Ok(())
     }
 }
