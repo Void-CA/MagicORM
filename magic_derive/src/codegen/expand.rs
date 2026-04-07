@@ -1,6 +1,7 @@
 use quote::{quote, format_ident};
 use syn::DeriveInput;
 
+use crate::codegen::impl_belongs_to::generate_belongs_to_impls;
 use crate::input::attrs::{FKConfig, MagicConfig};
 use crate::input::ModelInfo;
 
@@ -49,7 +50,7 @@ pub fn expand_magic_model(
     let model_meta_impl = generate_model_meta_impl(struct_name, fk_fields, &model, &table_name);
     let model_impl = generate_model_impl(struct_name, &model);
     let hasfk_impl = generate_hasfk_impl(fk_fields, struct_name);
-    
+    let belongs_to_impls = generate_belongs_to_impls(fk_fields, struct_name);
     quote! {
         #vis struct #new_struct_name {
             #( #new_fields, )*
@@ -70,6 +71,8 @@ pub fn expand_magic_model(
             #crud_methods
             
             #other_methods
+
+            #belongs_to_impls
         }
         #newstruct_methods
 

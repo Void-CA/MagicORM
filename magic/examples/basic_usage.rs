@@ -64,5 +64,9 @@ async fn main() -> anyhow::Result<()> {
     let posts = alicia.posts(&mut *tx).await?;
     tx.commit().await?;
     println!("Posts de Alicia: {:#?}", posts);
+
+
+
+    println!("Posteador del post 1: {:#?}", posts[0].user(&pool).await?);
     Ok(())
 }

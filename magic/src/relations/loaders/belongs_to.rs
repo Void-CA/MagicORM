@@ -1,13 +1,18 @@
 use crate::model::ModelMeta;
 
-/// Carga el registro padre `R` desde la base de datos por su `id`.
-pub async fn load_belongs_to<R>(
-    pool: &sqlx::SqlitePool,
+pub async fn load_belongs_to<'e, R, E>(
+    executor: E,
     id: i64,
-) -> sqlx::Result<R>
+) -> anyhow::Result<R>
 where
     R: ModelMeta + for<'r> sqlx::FromRow<'r, sqlx::sqlite::SqliteRow> + Send + Unpin,
+    E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
 {
     let sql = format!("SELECT * FROM {} WHERE id = ?", R::TABLE);
-    sqlx::query_as::<_, R>(&sql).bind(id).fetch_one(pool).await
+    let row = sqlx::query_as::<_, R>(&sql)
+        .bind(id)
+        .fetch_one(executor)
+        .await
+        .map_err(|e| anyhow::anyhow!(e))?;
+    Ok(row)
 }
