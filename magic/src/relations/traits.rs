@@ -8,8 +8,11 @@ pub trait RelationList {
     fn all() -> Vec<&'static str>;
 }
 
-pub trait HasFK<P: Model> {
+pub trait HasFK<P>
+where
+    P: Model,
+    P::Id: Copy,
+{
     fn fk_for_parent() -> &'static str;
-
     fn fk_value(&self) -> P::Id;
 }
