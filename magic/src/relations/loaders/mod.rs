@@ -1,5 +1,5 @@
-pub mod has_many;
 pub mod belongs_to;
+pub mod has_many;
 
-pub use has_many::load_has_many;
-pub use belongs_to::load_belongs_to;
+pub use belongs_to::lazy::load_belongs_to;
+pub use has_many::lazy::load_has_many;
