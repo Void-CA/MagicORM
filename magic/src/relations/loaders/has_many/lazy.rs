@@ -1,4 +1,5 @@
-use crate::{executor, model::{Model, ModelMeta}, relations::traits::HasFK};
+use crate::model::{Model, ModelMeta};
+use crate::relations::traits::HasFK;
 
 pub async fn load_has_many<'e, P, C, E>(
     parent: &P,
