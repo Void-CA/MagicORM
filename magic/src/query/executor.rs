@@ -1,5 +1,8 @@
-use crate::query::QueryBuilder;
-use crate::model::ModelMeta;
+use std::marker::PhantomData;
+
+use crate::query::{EagerQueryBuilder, QueryBuilder};
+use crate::model::{ModelMeta, Model};
+use crate::prelude::HasFK;
 
 use sqlx;
 use sqlx::{Executor, Sqlite};
@@ -157,5 +160,32 @@ where
         }
 
         sql
+    }
+
+}
+
+
+impl<'a, T> QueryBuilder<'a, T>
+where
+    T: Model
+        + ModelMeta
+        + for<'r> sqlx::FromRow<'r, sqlx::sqlite::SqliteRow>
+        + Send
+        + Unpin,
+    T::Id: Copy + std::fmt::Display,
+{
+    pub fn with_many<C>(self) -> EagerQueryBuilder<'a, T, C>
+    where
+        C: Model
+            + HasFK<T>
+            + ModelMeta
+            + for<'r> sqlx::FromRow<'r, sqlx::sqlite::SqliteRow>
+            + Send
+            + Unpin,
+    {
+        EagerQueryBuilder {
+            base: self,
+            _marker: PhantomData,
+        }
     }
 }
