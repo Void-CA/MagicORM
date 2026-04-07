@@ -12,7 +12,13 @@ pub fn generate_insert(
     let new_struct_name = format_ident!("New{}", struct_name);
 
     quote! {
-        pub async fn insert(pool: &sqlx::SqlitePool, new: &#new_struct_name) -> sqlx::Result<i64> {
+        pub async fn insert<'e, E>(
+            executor: E,
+            new: &#new_struct_name
+        ) -> sqlx::Result<i64>
+        where
+            E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+        {
             let cols = &[ #( #column_names ),* ];
             let placeholders = vec!["?"; cols.len()].join(", ");
             let sql = format!(
@@ -24,7 +30,8 @@ pub fn generate_insert(
 
             let mut query = sqlx::query(&sql);
             #( query = query.bind(&new.#idents); )*
-            let result = query.execute(pool).await?;
+
+            let result = query.execute(executor).await?;
 
             Ok(result.last_insert_rowid() as i64)
         }
@@ -35,8 +42,14 @@ pub fn generate_newstruct_insert(struct_name: &Ident) -> proc_macro2::TokenStrea
     let new_struct_name = format_ident!("New{}", struct_name);
     quote! {
         impl #new_struct_name {
-            pub async fn insert(&self, pool: &sqlx::SqlitePool) -> sqlx::Result<i64> {
-                #struct_name::insert(pool, self).await
+            pub async fn insert<'e, E>(
+                &self,
+                executor: E
+            ) -> sqlx::Result<i64>
+            where
+                E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+            {
+                #struct_name::insert(executor, self).await
             }
         }
     }

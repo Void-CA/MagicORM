@@ -12,7 +12,14 @@ pub fn generate_put(
     let new_struct_name = format_ident!("New{}", struct_name);
 
     quote! {
-        pub async fn put(pool: &SqlitePool, id: i64, new: &#new_struct_name) -> sqlx::Result<i64> {
+        pub async fn put<'e, E>(
+            executor: E,
+            id: i64,
+            new: &#new_struct_name
+        ) -> sqlx::Result<i64>
+        where
+            E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+        {
             let cols = &[ #( #column_names ),* ];
             let sql = format!(
                 "UPDATE {} SET {} WHERE id = ?",
@@ -23,7 +30,7 @@ pub fn generate_put(
             let mut query = sqlx::query(&sql);
             #( query = query.bind(&new.#idents); )*
             query = query.bind(id);
-            let result = query.execute(pool).await?;
+            let result = query.execute(executor).await?;
             Ok(result.rows_affected().try_into().map_err(|_| {
                 sqlx::Error::Protocol("rows_affected overflowed i64".into())
             })?)
@@ -35,8 +42,11 @@ pub fn generate_newstruct_put(struct_name: &Ident) -> proc_macro2::TokenStream {
     let new_struct_name = format_ident!("New{}", struct_name);
     quote! {
         impl #new_struct_name {
-            pub async fn put(&self, pool: &sqlx::SqlitePool, id: i64) -> sqlx::Result<i64> {
-                #struct_name::put(pool, id, self).await
+            pub async fn put<'e, E>(&self, executor: E, id: i64) -> sqlx::Result<i64>
+            where
+                E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+            {
+                #struct_name::put(executor, id, self).await
             }
         }
     }

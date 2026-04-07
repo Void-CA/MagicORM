@@ -48,8 +48,7 @@ async fn main() -> anyhow::Result<()> {
         .await?;
 
     create_all::<SqlitePool, AppModels>(&mut pool).await?;
-    println!("{}", create_table_sql::<User>());
-    println!("{}", create_table_sql::<Post>());
-    println!("{}", create_table_sql::<Reaction>());
+
+
     Ok(())
 }
