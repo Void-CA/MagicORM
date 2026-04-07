@@ -51,6 +51,6 @@ where
     where
         E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
     {
-        crate::relations::loaders::has_many::load_has_many::<Self, C, E>(self, executor).await
+        crate::relations::load_has_many::<Self, C, E>(self, executor).await
     }
 }

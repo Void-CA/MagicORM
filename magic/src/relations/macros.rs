@@ -22,7 +22,7 @@ macro_rules! has_many {
                     where
                         E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
                     {
-                        $crate::relations::loaders::has_many::load_has_many::<$model, $child, E>(self, executor).await
+                        $crate::relations::load_has_many::<$model, $child, E>(self, executor).await
                     }
                 )+
             }
