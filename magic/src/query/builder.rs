@@ -10,3 +10,4 @@ pub struct QueryBuilder<'a, T> {
     pub offset: Option<u32>,
     pub _marker: std::marker::PhantomData<T>,
 }
+
