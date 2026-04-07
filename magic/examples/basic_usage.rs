@@ -49,6 +49,20 @@ async fn main() -> anyhow::Result<()> {
 
     create_all::<SqlitePool, AppModels>(&mut pool).await?;
 
+    let new_user = User::new("Alicia".into(), 25, "alicia@example.com".into());
 
+    let insert_id = User::insert(& pool, &new_user).await?;
+
+    let post_1 = Post::new("Primer post".into(), "Contenido del primer post".into(), insert_id);
+    let post_2 = Post::new("Segundo post".into(), "Contenido del segundo post".into(), insert_id);
+    Post::insert(& pool, &post_1).await?;
+    Post::insert(& pool, &post_2).await?;
+
+
+    let alicia = User::get_by_id(&pool, insert_id).await?.unwrap();
+    let mut tx = pool.begin().await?;
+    let posts = alicia.posts(&mut *tx).await?;
+    tx.commit().await?;
+    println!("Posts de Alicia: {:#?}", posts);
     Ok(())
 }

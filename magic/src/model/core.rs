@@ -47,7 +47,10 @@ where
         + Unpin
         + for<'r> sqlx::FromRow<'r, sqlx::sqlite::SqliteRow>,
 {
-    async fn load_children<'a>(&self, pool: &'a sqlx::SqlitePool) -> anyhow::Result<Vec<C>> {
-        crate::relations::loaders::has_many::load_has_many::<Self, C>(self, pool).await
+    async fn load_children<'e, E>(&self, executor: E) -> anyhow::Result<Vec<C>>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        crate::relations::loaders::has_many::load_has_many::<Self, C, E>(self, executor).await
     }
 }

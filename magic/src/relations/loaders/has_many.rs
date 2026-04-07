@@ -1,18 +1,18 @@
-use crate::{model::{ModelMeta, Model}, relations::traits::HasFK};
+use crate::{executor, model::{Model, ModelMeta}, relations::traits::HasFK};
 
-/// Carga todos los hijos `C` que referencian al padre `P` vía FK.
-pub async fn load_has_many<P, C>(
+pub async fn load_has_many<'e, P, C, E>(
     parent: &P,
-    pool: &sqlx::SqlitePool,
+    executor: E,
 ) -> anyhow::Result<Vec<C>>
 where
     P: Model,
     C: Model + ModelMeta + HasFK<P> + for<'r> sqlx::FromRow<'r, sqlx::sqlite::SqliteRow> + Send + Unpin,
+    E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
 {
     let fk_column = C::fk_for_parent();
     let rows = C::query()
         .filter(fk_column, "=", parent.id())
-        .fetch_all(pool)
+        .fetch_all(executor)
         .await
         .map_err(|e| anyhow::anyhow!(e))?;
 

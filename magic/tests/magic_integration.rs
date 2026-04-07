@@ -112,3 +112,29 @@ async fn test_delete_operations() {
     let deleted = User::delete_by_id(&pool, user_id).await.unwrap();
     assert_eq!(deleted, 1);
 }
+
+#[tokio::test]
+async fn test_has_many_relationship() {
+    let pool = setup_pool().await;
+
+    // Crear un usuario
+    let user_id = User::insert(&pool, &NewUser {
+        name: "RelTest".to_string(),
+        edad: 30,
+        email: "reltest@example.com".to_string(),
+    }).await.unwrap();
+
+    let user = User::get_by_id(&pool, user_id).await.unwrap().unwrap();
+
+    // Crear un post asociado
+    let post_id = Post::insert(&pool, &NewPost {
+        title: "RelPost".to_string(),
+        content: "Content".to_string(),
+        user_id,
+    }).await.unwrap();
+
+    // Cargar los posts del usuario
+    let fetched_posts = user.posts(&pool).await.unwrap();
+    assert_eq!(fetched_posts.len(), 1);
+    assert_eq!(fetched_posts[0].user_id, user_id);
+}

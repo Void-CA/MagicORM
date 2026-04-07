@@ -2,6 +2,60 @@ use crate::query::QueryBuilder;
 use crate::model::ModelMeta;
 
 use sqlx;
+use sqlx::{Executor, Sqlite};
+
+impl<'a, T> QueryBuilder<'a, T>
+where
+    T: ModelMeta + for<'r> sqlx::FromRow<'r, sqlx::sqlite::SqliteRow> + Send + Unpin,
+{
+    pub async fn fetch_all<E>(self, executor: E) -> anyhow::Result<Vec<T>>
+    where
+        E: Executor<'a, Database = Sqlite>,
+    {
+        let sql = self.build_sql();
+        let rows = sqlx::query_as::<_, T>(&sql)
+            .fetch_all(executor)
+            .await
+            .map_err(|e| anyhow::anyhow!(e))?;
+        Ok(rows)
+    }
+
+    pub async fn fetch_one<E>(self, executor: E) -> anyhow::Result<T>
+    where
+        E: Executor<'a, Database = Sqlite>,
+    {
+        let sql = self.build_sql();
+        let row = sqlx::query_as::<_, T>(&sql)
+            .fetch_one(executor)
+            .await
+            .map_err(|e| anyhow::anyhow!(e))?;
+        Ok(row)
+    }
+
+    pub async fn fetch_optional<E>(self, executor: E) -> anyhow::Result<Option<T>>
+    where
+        E: Executor<'a, Database = Sqlite>,
+    {
+        let sql = self.build_sql();
+        let row = sqlx::query_as::<_, T>(&sql)
+            .fetch_optional(executor)
+            .await
+            .map_err(|e| anyhow::anyhow!(e))?;
+        Ok(row)
+    }
+
+    pub async fn execute<E>(self, executor: E) -> anyhow::Result<u64>
+    where
+        E: Executor<'a, Database = Sqlite>,
+    {
+        let sql = self.build_sql();
+        let result = sqlx::query(&sql)
+            .execute(executor)
+            .await
+            .map_err(|e| anyhow::anyhow!(e))?;
+        Ok(result.rows_affected())
+    }
+}
 
 impl<'a, T> QueryBuilder<'a, T>
 where
@@ -70,25 +124,6 @@ where
 
         self.joins.push(format!("LEFT JOIN {} ON {}", join_table, on_clause));
         self
-    }
-
-    // -----------------------------------------------------------------------
-    // Métodos de ejecución contra la base de datos
-    // -----------------------------------------------------------------------
-
-    pub async fn fetch_all(self, pool: &sqlx::SqlitePool) -> sqlx::Result<Vec<T>> {
-        let sql = self.build_sql();
-        sqlx::query_as::<_, T>(&sql).fetch_all(pool).await
-    }
-
-    pub async fn fetch_one(self, pool: &sqlx::SqlitePool) -> sqlx::Result<T> {
-        let sql = self.build_sql();
-        sqlx::query_as::<_, T>(&sql).fetch_one(pool).await
-    }
-
-    pub async fn fetch_optional(self, pool: &sqlx::SqlitePool) -> sqlx::Result<Option<T>> {
-        let sql = self.build_sql();
-        sqlx::query_as::<_, T>(&sql).fetch_optional(pool).await
     }
 
     fn build_sql(&self) -> String {
