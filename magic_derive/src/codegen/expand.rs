@@ -43,7 +43,7 @@ pub fn expand_magic_model(
     });
 
     let crud_methods = generate_crud_methods(struct_name, &model, &table_name);
-    let newstruct_methods = generate_newstruct_methods(struct_name);
+    let newstruct_methods = generate_newstruct_methods(struct_name, &model);
     let other_methods = generate_registry_method(struct_name);
 
     let from_row_impl = generate_from_row_impl(struct_name, &model);

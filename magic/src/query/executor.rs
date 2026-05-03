@@ -167,12 +167,12 @@ where
 
 impl<'a, T> QueryBuilder<'a, T>
 where
-    T: Model<Id = i64>
+    T: Model
         + ModelMeta
         + for<'r> sqlx::FromRow<'r, sqlx::sqlite::SqliteRow>
         + Send
         + Unpin,
-    T::Id: Copy + std::fmt::Display,
+    T::Id: Clone + Eq + std::hash::Hash + std::fmt::Display + for<'q> sqlx::Encode<'q, sqlx::Sqlite> + sqlx::Type<sqlx::Sqlite>,
 {
     pub fn with_many<C>(self) -> EagerQueryBuilder<'a, T, C>
     where

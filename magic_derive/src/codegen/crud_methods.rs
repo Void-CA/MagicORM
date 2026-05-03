@@ -11,7 +11,7 @@ pub fn generate_crud_methods(struct_name: &syn::Ident, model: &ModelInfo, table_
     let select_method = generate_get(struct_name, model, table_name);
     let select_by_id_method = generate_get_by_id(struct_name, model, table_name);
     let delete_method = generate_delete(table_name);
-    let delete_by_id_method = generate_delete_by_id(table_name);
+    let delete_by_id_method = generate_delete_by_id(struct_name, model, table_name);
     
     quote! {
         #insert_method
@@ -23,9 +23,9 @@ pub fn generate_crud_methods(struct_name: &syn::Ident, model: &ModelInfo, table_
     }
 }
     
-pub fn generate_newstruct_methods(struct_name: &syn::Ident) -> proc_macro2::TokenStream {
+pub fn generate_newstruct_methods(struct_name: &syn::Ident, model: &ModelInfo) -> proc_macro2::TokenStream {
     let newstruct_insert = generate_newstruct_insert(struct_name);
-    let newstruct_put = generate_newstruct_put(struct_name);
+    let newstruct_put = generate_newstruct_put(struct_name, model);
 
     quote! {
         #newstruct_insert

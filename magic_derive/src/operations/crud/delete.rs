@@ -1,3 +1,4 @@
+use crate::input::ModelInfo;
 use quote::{quote};
 
 pub fn generate_delete(table_name: &str) -> proc_macro2::TokenStream {
@@ -22,9 +23,10 @@ pub fn generate_delete(table_name: &str) -> proc_macro2::TokenStream {
     }
 }
 
-pub fn generate_delete_by_id(table_name: &str) -> proc_macro2::TokenStream {
+pub fn generate_delete_by_id(struct_name: &syn::Ident, model: &ModelInfo, table_name: &str) -> proc_macro2::TokenStream {
+    let id_type = &model.id_field.ty;
     quote! {
-        pub async fn delete_by_id<'e, E>(executor: E, id: i64) -> sqlx::Result<usize>
+        pub async fn delete_by_id<'e, E>(executor: E, id: #id_type) -> sqlx::Result<usize>
         where
             E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
         {

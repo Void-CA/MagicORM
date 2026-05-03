@@ -12,7 +12,7 @@ pub trait Model:
     + Unpin
     + for<'r> sqlx::FromRow<'r, sqlx::sqlite::SqliteRow>
 {
-    type Id: Send + std::fmt::Display;
+    type Id: Send + std::fmt::Display + Clone + Eq + std::hash::Hash;
 
     fn id(&self) -> &Self::Id;
 
@@ -40,7 +40,6 @@ pub trait BelongsTo<P: Model>: Model {
 #[async_trait::async_trait]
 pub trait HasMany<C>: Model
 where
-    Self::Id: Copy,
     C: Model
         + ModelMeta
         + HasFK<Self>

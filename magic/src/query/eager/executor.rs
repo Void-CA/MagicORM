@@ -2,9 +2,10 @@ use crate::model::{Model, ModelMeta};
 use crate::prelude::HasFK;
 use crate::query::eager::{EagerQueryBuilder, WithMany};
 
-impl<'a, P: Model<Id = i64>, C: Model<Id = i64>> EagerQueryBuilder<'a, P, C>
+impl<'a, P: Model, C: Model> EagerQueryBuilder<'a, P, C>
 where
     P: ModelMeta + Send + Unpin,
+    P::Id: Clone + Eq + std::hash::Hash + for<'q> sqlx::Encode<'q, sqlx::Sqlite> + sqlx::Type<sqlx::Sqlite>,
     C: Model
         + ModelMeta
         + HasFK<P>

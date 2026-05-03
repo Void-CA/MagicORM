@@ -11,7 +11,7 @@ pub trait RelationList {
 pub trait HasFK<P>
 where
     P: Model,
-    P::Id: Copy,
+    P::Id: Clone + Eq + std::hash::Hash,
 {
     fn fk_for_parent() -> &'static str;
     fn fk_value(&self) -> P::Id;

@@ -1,11 +1,12 @@
-use crate::model::ModelMeta;
+use crate::model::{Model, ModelMeta};
 
 pub async fn load_belongs_to<'e, R, E>(
     executor: E,
-    id: i64,
+    id: R::Id,
 ) -> anyhow::Result<R>
 where
-    R: ModelMeta + for<'r> sqlx::FromRow<'r, sqlx::sqlite::SqliteRow> + Send + Unpin,
+    R: Model + ModelMeta + for<'r> sqlx::FromRow<'r, sqlx::sqlite::SqliteRow> + Send + Unpin,
+    R::Id: for<'q> sqlx::Encode<'q, sqlx::Sqlite> + sqlx::Type<sqlx::Sqlite>,
     E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
 {
     let sql = format!("SELECT * FROM {} WHERE id = ?", R::TABLE);

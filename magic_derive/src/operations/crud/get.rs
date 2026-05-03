@@ -40,8 +40,10 @@ pub fn generate_get_by_id(
     let all_columns: Vec<String> = model.column_names();
     let all_columns_literal = Literal::string(&all_columns.join(", "));
 
+    // Resolvemos el tipo de ID del struct para la firma
+    let id_type = &model.id_field.ty;
     quote! {
-        pub async fn get_by_id<'e, E>(executor: E, id: i64) -> sqlx::Result<Option<#struct_name>>
+        pub async fn get_by_id<'e, E>(executor: E, id: #id_type) -> sqlx::Result<Option<#struct_name>>
         where
             E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
          {

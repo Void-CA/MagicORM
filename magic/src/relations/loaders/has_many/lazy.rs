@@ -7,7 +7,7 @@ pub async fn load_has_many<'e, P, C, E>(
 ) -> anyhow::Result<Vec<C>>
 where
     P: Model,
-    P::Id: Copy,
+    P::Id: Clone + Eq + std::hash::Hash,
     C: Model + ModelMeta + HasFK<P> + for<'r> sqlx::FromRow<'r, sqlx::sqlite::SqliteRow> + Send + Unpin,
     E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
 {

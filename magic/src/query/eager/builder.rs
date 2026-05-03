@@ -6,13 +6,13 @@ use std::marker::PhantomData;
 
 /// EagerQueryBuilder permite encadenar filtros y luego cargar relaciones con `fetch_all`.
 /// Utiliza composición interna con `inner: QueryBuilder` y delegación manual.
-pub struct EagerQueryBuilder<'a, P: Model<Id = i64>, C> {
+pub struct EagerQueryBuilder<'a, P: Model, C> {
     pub inner: QueryBuilder<'a, P>,
     pub _marker: PhantomData<C>,
 }
 
 // Delegación manual de métodos necesarios
-impl<'a, P: Model<Id = i64>, C> EagerQueryBuilder<'a, P, C> {
+impl<'a, P: Model, C> EagerQueryBuilder<'a, P, C> {
     pub fn filter(mut self, col: &str, op: &str, value: impl std::string::ToString) -> Self {
         self.inner = self.inner.filter(col, op, value);
         self
@@ -35,19 +35,20 @@ impl<'a, P: Model<Id = i64>, C> EagerQueryBuilder<'a, P, C> {
 }
 
 #[derive(Debug)]
-pub struct WithMany<P: Model<Id = i64>, C> {
+pub struct WithMany<P: Model, C> {
     pub parents: Vec<P>,
-    pub children: HashMap<i64, Vec<C>>,
+    pub children: HashMap<P::Id, Vec<C>>,
 }
 
 impl<P, C> WithMany<P, C>
 where
-    P: Model<Id = i64>,
+    P: Model,
+    P::Id: Clone + Eq + std::hash::Hash,
     C: Model,
 {
     pub fn children_of(&self, parent: &P) -> &[C] {
         self.children
-            .get(&parent.id())
+            .get(parent.id())
             .map(Vec::as_slice)
             .unwrap_or(&[])
     }
@@ -56,7 +57,7 @@ where
         self.parents.iter().map(move |p| {
             let children = self
                 .children
-                .get(&p.id())
+                .get(p.id())
                 .map(Vec::as_slice)
                 .unwrap_or(&[]);
             (p, children)

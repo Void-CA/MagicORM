@@ -11,10 +11,12 @@ pub fn generate_put(
     let column_names: Vec<String> = model.no_id_column_names();
     let new_struct_name = format_ident!("New{}", struct_name);
 
+    // Resolvemos el tipo de ID del struct para la firma
+    let id_type = &model.id_field.ty;
     quote! {
         pub async fn put<'e, E>(
             executor: E,
-            id: i64,
+            id: #id_type,
             new: &#new_struct_name
         ) -> sqlx::Result<i64>
         where
@@ -38,11 +40,12 @@ pub fn generate_put(
     }
 }
 
-pub fn generate_newstruct_put(struct_name: &Ident) -> proc_macro2::TokenStream {
+pub fn generate_newstruct_put(struct_name: &Ident, model: &ModelInfo) -> proc_macro2::TokenStream {
     let new_struct_name = format_ident!("New{}", struct_name);
+    let id_type = &model.id_field.ty;
     quote! {
         impl #new_struct_name {
-            pub async fn put<'e, E>(&self, executor: E, id: i64) -> sqlx::Result<i64>
+            pub async fn put<'e, E>(&self, executor: E, id: #id_type) -> sqlx::Result<i64>
             where
                 E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
             {
