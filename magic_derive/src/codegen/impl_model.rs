@@ -7,6 +7,7 @@ pub fn generate_model_impl(struct_name: &syn::Ident, model: &ModelInfo) -> proc_
     quote! {
         impl ::magic_orm::model::Model for #struct_name {
             type Id = #id_type;
+            type DB = ::magic_orm::db::DefaultDB;
 
             fn id_column() -> &'static str {
                 "id"

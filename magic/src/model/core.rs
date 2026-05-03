@@ -10,9 +10,10 @@ pub trait Model:
     + Sized
     + Send
     + Unpin
-    + for<'r> sqlx::FromRow<'r, sqlx::sqlite::SqliteRow>
+    + for<'r> sqlx::FromRow<'r, <Self::DB as sqlx::Database>::Row>
 {
     type Id: Send + std::fmt::Display + Clone + Eq + std::hash::Hash;
+    type DB: sqlx::Database;
 
     fn id(&self) -> &Self::Id;
 
@@ -45,11 +46,11 @@ where
         + HasFK<Self>
         + Send
         + Unpin
-        + for<'r> sqlx::FromRow<'r, sqlx::sqlite::SqliteRow>,
+        + for<'r> sqlx::FromRow<'r, <Self::DB as sqlx::Database>::Row>,
 {
     async fn load_children<'e, E>(&self, executor: E) -> anyhow::Result<Vec<C>>
     where
-        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+        E: sqlx::Executor<'e, Database = Self::DB>,
     {
         crate::relations::load_has_many::<Self, C, E>(self, executor).await
     }
