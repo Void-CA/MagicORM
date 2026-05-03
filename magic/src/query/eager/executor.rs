@@ -2,9 +2,9 @@ use crate::model::{Model, ModelMeta};
 use crate::prelude::HasFK;
 use crate::query::eager::{EagerQueryBuilder, WithMany};
 
-impl<'a, P, C> EagerQueryBuilder<'a, P, C>
+impl<'a, P: Model<Id = i64>, C: Model<Id = i64>> EagerQueryBuilder<'a, P, C>
 where
-    P: Model<Id = i64> + ModelMeta + Send + Unpin,
+    P: ModelMeta + Send + Unpin,
     C: Model
         + ModelMeta
         + HasFK<P>
@@ -16,8 +16,8 @@ where
     where
         E: sqlx::Executor<'a, Database = sqlx::Sqlite> + Copy,
     {
-        // 1️⃣ traer padres
-        let parents = self.base.fetch_all(executor).await?;
+        // 1️⃣ traer padres usando el QueryBuilder interno
+        let parents = self.inner.fetch_all(executor).await?;
 
         // 2️⃣ eager loading directo
         let children =

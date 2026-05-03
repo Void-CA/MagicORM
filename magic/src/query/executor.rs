@@ -167,7 +167,7 @@ where
 
 impl<'a, T> QueryBuilder<'a, T>
 where
-    T: Model
+    T: Model<Id = i64>
         + ModelMeta
         + for<'r> sqlx::FromRow<'r, sqlx::sqlite::SqliteRow>
         + Send
@@ -184,8 +184,8 @@ where
             + Unpin,
     {
         EagerQueryBuilder {
-            base: self,
             _marker: PhantomData,
+            inner: self,
         }
     }
 }
