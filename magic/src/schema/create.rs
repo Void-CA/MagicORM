@@ -1,6 +1,9 @@
+use std::time::Instant;
+
 use crate::model::{ModelMeta, ModelDescriptor, RegisteredModels};
-use sqlx::Executor;
+use sqlx::{Executor, IntoArguments};
 use std::collections::HashSet;
+use tracing::debug;
 
 /// Genera SQL de creación de tabla
 pub fn create_table_sql<T: ModelMeta>() -> String {
@@ -69,8 +72,11 @@ pub async fn create_all<'e, E, R>(executor: E) -> anyhow::Result<()>
 where
     E: Executor<'e> + Copy,
     R: RegisteredModels,
+    for<'q> <E::Database as sqlx::Database>::Arguments<'q>: sqlx::IntoArguments<'q, E::Database>,
 {
+    let start = Instant::now();
     let mut models = R::models();
+    debug!(model_count = models.len(), "create_all started");
     let mut created = HashSet::new();
 
     while !models.is_empty() {
@@ -89,7 +95,19 @@ where
         }
 
         if ready_indices.is_empty() {
+            debug!("create_all: cycle detected, remaining models: {:?}", models.iter().map(|m| m.table).collect::<Vec<_>>());
             anyhow::bail!("Schema cycle detected");
+        }
+
+        for &idx in &ready_indices {
+            let model = &models[idx];
+            let sql = create_table_sql_from_descriptor(model);
+            debug!(table = model.table, sql = %sql, "create_all: creating table");
+
+            sqlx::query(&sql).execute(executor).await?;
+
+            debug!(table = model.table, "create_all: table created");
+            created.insert(model.table);
         }
 
         for &idx in &ready_indices {
@@ -106,5 +124,7 @@ where
         }
     }
 
+    let elapsed = start.elapsed();
+    debug!(elapsed_us = elapsed.as_micros() as u64, "create_all completed");
     Ok(())
 }

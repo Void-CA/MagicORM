@@ -1,7 +1,10 @@
+use std::time::Instant;
+
 use crate::dialect::{HasDialect, SqlDialect};
 use crate::model::Model;
 use crate::query::statement::BindArg;
 use sqlx::{Database, Executor};
+use tracing::debug;
 
 // =========================================================================
 // Macro — genera todas las operaciones CRUD para un DB concreto.
@@ -21,7 +24,10 @@ macro_rules! impl_crud {
         where
             T: Model<DB = $db>,
         {
+            let start = Instant::now();
             let sql = <$db as HasDialect>::Dialect::insert_returning(table, columns, T::id_column());
+            debug!(table, sql = %sql, value_count = values.len(), "crud::insert");
+
             let mut q = sqlx::query(&sql);
             for v in values {
                 q = match v {
@@ -35,14 +41,19 @@ macro_rules! impl_crud {
             #[cfg(feature = "sqlite")]
             {
                 let result = q.execute(executor).await.map_err(|e| anyhow::anyhow!(e))?;
-                Ok(result.last_insert_rowid() as i64)
+                let elapsed = start.elapsed();
+                let id = result.last_insert_rowid() as i64;
+                debug!(id, elapsed_us = elapsed.as_micros() as u64, "crud::insert done");
+                Ok(id)
             }
 
             #[cfg(feature = "postgres")]
             {
                 use sqlx::Row;
                 let row = q.fetch_one(executor).await.map_err(|e| anyhow::anyhow!(e))?;
+                let elapsed = start.elapsed();
                 let id: i64 = row.try_get(0).map_err(|e| anyhow::anyhow!(e))?;
+                debug!(id, elapsed_us = elapsed.as_micros() as u64, "crud::insert done");
                 Ok(id)
             }
         }
@@ -58,11 +69,25 @@ macro_rules! impl_crud {
         where
             T: Model<DB = $db> + Send,
         {
+            let start = Instant::now();
             let sql = format!("SELECT {} FROM {}", columns, table);
-            sqlx::query_as::<_, T>(&sql)
+            debug!(table, sql = %sql, "crud::get_all");
+
+            let result = sqlx::query_as::<_, T>(&sql)
                 .fetch_all(executor)
-                .await
-                .map_err(|e| anyhow::anyhow!(e))
+                .await;
+            let elapsed = start.elapsed();
+
+            match result {
+                Ok(rows) => {
+                    debug!(count = rows.len(), elapsed_us = elapsed.as_micros() as u64, "crud::get_all done");
+                    Ok(rows)
+                }
+                Err(e) => {
+                    debug!(error = %e, elapsed_us = elapsed.as_micros() as u64, "crud::get_all failed");
+                    Err(anyhow::anyhow!(e))
+                }
+            }
         }
 
         // ----------------------------------------------------------------
@@ -77,13 +102,27 @@ macro_rules! impl_crud {
         where
             T: Model<DB = $db> + Send,
         {
+            let start = Instant::now();
             let placeholder = <$db as HasDialect>::Dialect::placeholder(1);
             let sql = format!("SELECT {} FROM {} WHERE id = {}", columns, table, placeholder);
-            sqlx::query_as::<_, T>(&sql)
+            debug!(table, sql = %sql, "crud::get_by_id");
+
+            let result = sqlx::query_as::<_, T>(&sql)
                 .bind(id)
                 .fetch_optional(executor)
-                .await
-                .map_err(|e| anyhow::anyhow!(e))
+                .await;
+            let elapsed = start.elapsed();
+
+            match result {
+                Ok(row) => {
+                    debug!(found = row.is_some(), elapsed_us = elapsed.as_micros() as u64, "crud::get_by_id done");
+                    Ok(row)
+                }
+                Err(e) => {
+                    debug!(error = %e, elapsed_us = elapsed.as_micros() as u64, "crud::get_by_id failed");
+                    Err(anyhow::anyhow!(e))
+                }
+            }
         }
 
         // ----------------------------------------------------------------
@@ -99,6 +138,7 @@ macro_rules! impl_crud {
         where
             T: Model<DB = $db>,
         {
+            let start = Instant::now();
             let set_clause: Vec<String> = columns
                 .iter()
                 .enumerate()
@@ -114,6 +154,8 @@ macro_rules! impl_crud {
                 set_clause.join(", "),
                 id_ph,
             );
+            debug!(table, sql = %sql, value_count = values.len(), "crud::put");
+
             let mut q = sqlx::query(&sql);
             for v in values {
                 q = match v {
@@ -124,8 +166,21 @@ macro_rules! impl_crud {
                 };
             }
             q = q.bind(id);
-            let result = q.execute(executor).await.map_err(|e| anyhow::anyhow!(e))?;
-            Ok(result.rows_affected())
+
+            let result = q.execute(executor).await;
+            let elapsed = start.elapsed();
+
+            match result {
+                Ok(result) => {
+                    let affected = result.rows_affected();
+                    debug!(affected, elapsed_us = elapsed.as_micros() as u64, "crud::put done");
+                    Ok(affected)
+                }
+                Err(e) => {
+                    debug!(error = %e, elapsed_us = elapsed.as_micros() as u64, "crud::put failed");
+                    Err(anyhow::anyhow!(e))
+                }
+            }
         }
 
         // ----------------------------------------------------------------
@@ -135,12 +190,26 @@ macro_rules! impl_crud {
             executor: impl Executor<'e, Database = $db>,
             table: &str,
         ) -> anyhow::Result<u64> {
+            let start = Instant::now();
             let sql = format!("DELETE FROM {}", table);
+            debug!(table, sql = %sql, "crud::delete_all");
+
             let result = sqlx::query(&sql)
                 .execute(executor)
-                .await
-                .map_err(|e| anyhow::anyhow!(e))?;
-            Ok(result.rows_affected())
+                .await;
+            let elapsed = start.elapsed();
+
+            match result {
+                Ok(result) => {
+                    let affected = result.rows_affected();
+                    debug!(affected, elapsed_us = elapsed.as_micros() as u64, "crud::delete_all done");
+                    Ok(affected)
+                }
+                Err(e) => {
+                    debug!(error = %e, elapsed_us = elapsed.as_micros() as u64, "crud::delete_all failed");
+                    Err(anyhow::anyhow!(e))
+                }
+            }
         }
 
         // ----------------------------------------------------------------
@@ -154,14 +223,28 @@ macro_rules! impl_crud {
         where
             T: Model<DB = $db>,
         {
+            let start = Instant::now();
             let placeholder = <$db as HasDialect>::Dialect::placeholder(1);
             let sql = format!("DELETE FROM {} WHERE id = {}", table, placeholder);
-            sqlx::query(&sql)
+            debug!(table, sql = %sql, "crud::delete_by_id");
+
+            let result = sqlx::query(&sql)
                 .bind(id)
                 .execute(executor)
-                .await
-                .map(|r| r.rows_affected())
-                .map_err(|e| anyhow::anyhow!(e))
+                .await;
+            let elapsed = start.elapsed();
+
+            match result {
+                Ok(result) => {
+                    let affected = result.rows_affected();
+                    debug!(affected, elapsed_us = elapsed.as_micros() as u64, "crud::delete_by_id done");
+                    Ok(affected)
+                }
+                Err(e) => {
+                    debug!(error = %e, elapsed_us = elapsed.as_micros() as u64, "crud::delete_by_id failed");
+                    Err(anyhow::anyhow!(e))
+                }
+            }
         }
     };
 }
