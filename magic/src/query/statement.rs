@@ -7,6 +7,7 @@ pub enum BindArg {
     F64(f64),
     Text(String),
     Bool(bool),
+    Uuid(uuid::Uuid),
 }
 
 // Conversiones desde tipos comunes
@@ -44,6 +45,12 @@ impl From<&String> for BindArg {
 }
 impl From<&bool> for BindArg {
     fn from(v: &bool) -> Self { BindArg::Bool(*v) }
+}
+impl From<uuid::Uuid> for BindArg {
+    fn from(v: uuid::Uuid) -> Self { BindArg::Uuid(v) }
+}
+impl From<&uuid::Uuid> for BindArg {
+    fn from(v: &uuid::Uuid) -> Self { BindArg::Uuid(*v) }
 }
 
 // ---------------------------------------------------------------------------

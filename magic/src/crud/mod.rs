@@ -35,6 +35,7 @@ macro_rules! impl_crud {
                     BindArg::F64(v) => q.bind(v),
                     BindArg::Text(v) => q.bind(v),
                     BindArg::Bool(v) => q.bind(v),
+                    BindArg::Uuid(v) => q.bind(v),
                 };
             }
 
@@ -163,6 +164,7 @@ macro_rules! impl_crud {
                     BindArg::F64(v) => q.bind(v),
                     BindArg::Text(v) => q.bind(v),
                     BindArg::Bool(v) => q.bind(v),
+                    BindArg::Uuid(v) => q.bind(v),
                 };
             }
             q = q.bind(id);

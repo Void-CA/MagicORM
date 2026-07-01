@@ -36,7 +36,8 @@ pub fn map_rust_to_sqlite(ty: &syn::Type) -> &'static str {
                 "String" => "TEXT",
                 "bool" => "INTEGER",
                 "Vec" => "BLOB",
-                _ => "TEXT", // fallback razonable
+                "Uuid" => "TEXT",
+                _ => "TEXT",
             };
         }
     }

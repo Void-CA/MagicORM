@@ -32,6 +32,7 @@ impl SqlDialect for SqliteDialect {
             "f32" | "f64" => "REAL",
             "String" => "TEXT",
             "bool" => "INTEGER",
+            "Uuid" => "TEXT",
             _ => "TEXT",
         }
     }

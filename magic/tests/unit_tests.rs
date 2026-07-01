@@ -42,10 +42,18 @@ pub struct PostCategory {
     pub name: String,
 }
 
+// Modelo con UUID como ID
+#[derive(MagicModel, Debug)]
+#[magic(table = "documents")]
+pub struct Document {
+    pub id: uuid::Uuid,
+    pub title: String,
+}
+
 has_many!(User => Post, Reaction);
 has_many!(Post => Reaction);
 
-register_models!(User, Post, Reaction, PostCategory);
+register_models!(User, Post, Reaction, PostCategory, Document);
 
 // =========================================================================
 // BindArg
@@ -97,6 +105,29 @@ fn test_bind_arg_from_ref_string() {
     let s = String::from("ref");
     let arg = BindArg::from(&s);
     assert!(matches!(arg, BindArg::Text(t) if t == "ref"));
+}
+
+#[test]
+fn test_bind_arg_from_uuid() {
+    let id = uuid::Uuid::new_v4();
+    let arg = BindArg::from(id);
+    assert!(matches!(arg, BindArg::Uuid(u) if u == id));
+}
+
+#[test]
+fn test_bind_arg_from_ref_uuid() {
+    let id = uuid::Uuid::new_v4();
+    let arg = BindArg::from(&id);
+    assert!(matches!(arg, BindArg::Uuid(u) if u == id));
+}
+
+#[test]
+fn test_bind_arg_uuid_with_filter() {
+    let id = uuid::Uuid::new_v4();
+    let sql = Document::query()
+        .filter("id", "=", id)
+        .build_sql();
+    assert_eq!(sql, "SELECT * FROM documents WHERE id = ?");
 }
 
 // =========================================================================
@@ -352,7 +383,7 @@ fn test_describe_foreign_keys() {
 #[test]
 fn test_describe_all_descriptors() {
     let descs = all_descriptors();
-    assert_eq!(descs.len(), 4); // User, Post, Reaction, PostCategory
+    assert_eq!(descs.len(), 5); // User, Post, Reaction, PostCategory, Document
     let tables: Vec<&str> = descs.iter().map(|d| d.table.as_str()).collect();
     assert!(tables.contains(&"users"));
     assert!(tables.contains(&"posts"));

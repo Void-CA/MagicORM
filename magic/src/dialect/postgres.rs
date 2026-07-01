@@ -38,6 +38,7 @@ impl SqlDialect for PostgresDialect {
             "f64" => "DOUBLE PRECISION",
             "String" => "TEXT",
             "bool" => "BOOLEAN",
+            "Uuid" => "UUID",
             _ => "TEXT",
         }
     }
