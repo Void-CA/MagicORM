@@ -1,0 +1,5 @@
+---
+source: magic/tests/sql_snapshots.rs
+expression: "User::query().select(&[\"name\", \"age\"]).build_sql()"
+---
+SELECT name, age FROM users

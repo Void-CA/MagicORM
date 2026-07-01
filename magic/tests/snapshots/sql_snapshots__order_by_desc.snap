@@ -1,0 +1,5 @@
+---
+source: magic/tests/sql_snapshots.rs
+expression: "User::query().order_by(\"age\", false).build_sql()"
+---
+SELECT * FROM users ORDER BY age DESC

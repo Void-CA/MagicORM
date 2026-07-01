@@ -1,0 +1,5 @@
+---
+source: magic/tests/sql_snapshots.rs
+expression: "User::query().filter(\"name\", \"=\", \"Alice\").build_sql()"
+---
+SELECT * FROM users WHERE name = ?

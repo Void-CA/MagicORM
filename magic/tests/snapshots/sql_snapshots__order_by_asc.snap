@@ -1,0 +1,5 @@
+---
+source: magic/tests/sql_snapshots.rs
+expression: "User::query().order_by(\"name\", true).build_sql()"
+---
+SELECT * FROM users ORDER BY name ASC

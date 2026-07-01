@@ -1,0 +1,5 @@
+---
+source: magic/tests/sql_snapshots.rs
+expression: "User::query().filter(\"age\", \">=\",\n21).order_by(\"name\", true).limit(5).build_sql()"
+---
+SELECT * FROM users WHERE age >= ? ORDER BY name ASC LIMIT 5

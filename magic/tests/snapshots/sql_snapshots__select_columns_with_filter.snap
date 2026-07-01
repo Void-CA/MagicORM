@@ -1,0 +1,5 @@
+---
+source: magic/tests/sql_snapshots.rs
+expression: "User::query().select(&[\"id\", \"name\"]).filter(\"age\", \"<\", 30).build_sql()"
+---
+SELECT id, name FROM users WHERE age < ?

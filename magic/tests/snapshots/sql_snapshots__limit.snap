@@ -1,0 +1,5 @@
+---
+source: magic/tests/sql_snapshots.rs
+expression: "User::query().limit(10).build_sql()"
+---
+SELECT * FROM users LIMIT 10

@@ -1,0 +1,5 @@
+---
+source: magic/tests/sql_snapshots.rs
+expression: "User::query().join::<Post>().build_sql()"
+---
+SELECT * FROM users LEFT JOIN posts ON users.id = posts.user_id

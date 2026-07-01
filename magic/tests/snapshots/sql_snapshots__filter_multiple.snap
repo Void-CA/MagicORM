@@ -1,0 +1,5 @@
+---
+source: magic/tests/sql_snapshots.rs
+expression: "User::query().filter(\"age\", \">=\",\n18).filter(\"name\", \"LIKE\", \"%foo%\").build_sql()"
+---
+SELECT * FROM users WHERE age >= ? AND name LIKE ?
