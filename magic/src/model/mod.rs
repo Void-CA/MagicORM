@@ -12,4 +12,5 @@ mod registry; // contiene la macro register_models!
 pub use meta::{ColumnMeta, ForeignKeyMeta, ModelMeta};
 pub use core::{Model, HasMany, BelongsTo};
 pub use descriptor::{ModelDescriptor, RegisteredModels};
+#[allow(unused_imports)]
 pub use registry::*; // re-exporta la macro register_models!

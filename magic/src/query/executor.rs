@@ -1,4 +1,3 @@
-use crate::dialect::HasDialect;
 use crate::model::ModelMeta;
 use crate::query::builder::QueryBuilder;
 use crate::query::statement::BindArg;
@@ -15,7 +14,7 @@ macro_rules! impl_query_executor {
         impl<'a, T: ModelMeta + Send + Unpin> QueryBuilder<'a, $db, T>
         where for<'r> T: sqlx::FromRow<'r, <$db as sqlx::Database>::Row>,
         {
-            pub async fn fetch_all(mut self, executor: impl Executor<'_, Database = $db>) -> anyhow::Result<Vec<T>> {
+            pub async fn fetch_all(self, executor: impl Executor<'_, Database = $db>) -> anyhow::Result<Vec<T>> {
                 let sql = self.build_sql();
                 let mut q = sqlx::query_as::<_, T>(&sql);
                 for v in self.values {
@@ -29,7 +28,7 @@ macro_rules! impl_query_executor {
                 q.fetch_all(executor).await.map_err(|e| anyhow::anyhow!(e))
             }
 
-            pub async fn fetch_one(mut self, executor: impl Executor<'_, Database = $db>) -> anyhow::Result<T> {
+            pub async fn fetch_one(self, executor: impl Executor<'_, Database = $db>) -> anyhow::Result<T> {
                 let sql = self.build_sql();
                 let mut q = sqlx::query_as::<_, T>(&sql);
                 for v in self.values {
@@ -43,7 +42,7 @@ macro_rules! impl_query_executor {
                 q.fetch_one(executor).await.map_err(|e| anyhow::anyhow!(e))
             }
 
-            pub async fn fetch_optional(mut self, executor: impl Executor<'_, Database = $db>) -> anyhow::Result<Option<T>> {
+            pub async fn fetch_optional(self, executor: impl Executor<'_, Database = $db>) -> anyhow::Result<Option<T>> {
                 let sql = self.build_sql();
                 let mut q = sqlx::query_as::<_, T>(&sql);
                 for v in self.values {
@@ -59,7 +58,7 @@ macro_rules! impl_query_executor {
         }
 
         impl<'a, T: ModelMeta> QueryBuilder<'a, $db, T> {
-            pub async fn execute(mut self, executor: impl Executor<'_, Database = $db>) -> anyhow::Result<u64> {
+            pub async fn execute(self, executor: impl Executor<'_, Database = $db>) -> anyhow::Result<u64> {
                 let sql = self.build_sql();
                 let mut q = sqlx::query(&sql);
                 for v in self.values {
