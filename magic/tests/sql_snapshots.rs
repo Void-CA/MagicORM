@@ -117,3 +117,39 @@ fn test_sql_injection_placeholder() {
             .build_sql()
     );
 }
+
+#[test]
+fn test_filter_in_snapshot() {
+    insta::assert_snapshot!(
+        User::query()
+            .filter_in("id", [1i64, 2, 3])
+            .build_sql()
+    );
+}
+
+#[test]
+fn test_or_filter_snapshot() {
+    insta::assert_snapshot!(
+        User::query()
+            .filter("name", "=", "Alice")
+            .or_filter("name", "=", "Bob")
+            .build_sql()
+    );
+}
+
+#[test]
+fn test_count_filter_snapshot() {
+    insta::assert_snapshot!(
+        User::query()
+            .count()
+            .filter("age", ">", 18)
+            .build_sql()
+    );
+}
+
+#[test]
+fn test_count_no_filter_snapshot() {
+    insta::assert_snapshot!(
+        User::query().count().build_sql()
+    );
+}

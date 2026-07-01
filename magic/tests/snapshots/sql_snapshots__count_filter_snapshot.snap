@@ -1,0 +1,5 @@
+---
+source: magic/tests/sql_snapshots.rs
+expression: "User::query().count().filter(\"age\", \">\", 18).build_sql()"
+---
+SELECT count(*) FROM users WHERE age > ?

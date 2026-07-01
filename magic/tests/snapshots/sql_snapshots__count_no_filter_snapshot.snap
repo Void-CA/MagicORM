@@ -1,0 +1,5 @@
+---
+source: magic/tests/sql_snapshots.rs
+expression: "User::query().count().build_sql()"
+---
+SELECT count(*) FROM users

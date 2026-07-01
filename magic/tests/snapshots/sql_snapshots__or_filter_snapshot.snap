@@ -1,0 +1,5 @@
+---
+source: magic/tests/sql_snapshots.rs
+expression: "User::query().filter(\"name\", \"=\",\n\"Alice\").or_filter(\"name\", \"=\", \"Bob\").build_sql()"
+---
+SELECT * FROM users WHERE name = ? OR name = ?

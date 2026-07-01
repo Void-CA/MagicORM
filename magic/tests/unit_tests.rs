@@ -361,3 +361,65 @@ fn test_describe_to_json() {
     assert!(json.contains("\"name\": \"id\""));
     assert!(json.contains("\"auto_increment\": true"));
 }
+
+// =========================================================================
+// QueryBuilder — filter_in, or_filter, count
+// =========================================================================
+#[test]
+fn test_filter_in() {
+    let sql = User::query()
+        .filter_in("id", [1i64, 2i64, 3i64])
+        .build_sql();
+    assert_eq!(sql, "SELECT * FROM users WHERE id IN (?, ?, ?)");
+}
+
+#[test]
+fn test_filter_in_values_order() {
+    let qb = User::query()
+        .filter_in("id", [10i64, 20i64]);
+    assert_eq!(qb.values.len(), 2);
+    assert!(matches!(&qb.values[0], BindArg::I64(10)));
+    assert!(matches!(&qb.values[1], BindArg::I64(20)));
+}
+
+#[test]
+fn test_or_filter() {
+    let sql = User::query()
+        .filter("name", "=", "Alice")
+        .or_filter("name", "=", "Bob")
+        .build_sql();
+    assert_eq!(sql, "SELECT * FROM users WHERE name = ? OR name = ?");
+}
+
+#[test]
+fn test_and_or_combo() {
+    let sql = User::query()
+        .filter("age", ">", 18)
+        .or_filter("name", "=", "Admin")
+        .filter("active", "=", true)
+        .build_sql();
+    assert_eq!(sql, "SELECT * FROM users WHERE age > ? OR name = ? AND active = ?");
+}
+
+#[test]
+fn test_count() {
+    let sql = User::query()
+        .count()
+        .filter("age", ">", 18)
+        .build_sql();
+    assert_eq!(sql, "SELECT count(*) FROM users WHERE age > ?");
+}
+
+#[test]
+fn test_count_no_filters() {
+    let sql = User::query().count().build_sql();
+    assert_eq!(sql, "SELECT count(*) FROM users");
+}
+
+#[test]
+fn test_filter_in_empty() {
+    let sql = User::query()
+        .filter_in("id", std::iter::empty::<i64>())
+        .build_sql();
+    assert_eq!(sql, "SELECT * FROM users"); // no filter added
+}

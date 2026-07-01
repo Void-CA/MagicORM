@@ -1,0 +1,5 @@
+---
+source: magic/tests/sql_snapshots.rs
+expression: "User::query().filter_in(\"id\", [1i64, 2, 3]).build_sql()"
+---
+SELECT * FROM users WHERE id IN (?, ?, ?)

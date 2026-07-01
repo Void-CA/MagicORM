@@ -4,19 +4,19 @@ use crate::model::{ModelMeta, Model};
 use crate::query::statement::BindArg;
 
 // ---------------------------------------------------------------------------
-// Filter — condición sin formatear; el placeholder se genera al buildear
+// Filter — condición sin formatear
 // ---------------------------------------------------------------------------
 struct Filter {
     column: String,
     operator: String,
+    /// true si usa OR en vez de AND para conectar
+    is_or: bool,
+    /// cantidad de placeholders (1 para filtros normales, >1 para IN)
+    value_count: usize,
 }
 
 // ---------------------------------------------------------------------------
-// QueryBuilder — constructor de consultas SQL parametrizadas.
-//
-// Separa la construcción (build_sql) de la ejecución (fetch_all etc).
-// Los valores se almacenan como BindArg y se bindean al ejecutar,
-// eliminando por completo la posibilidad de SQL injection.
+// QueryBuilder
 // ---------------------------------------------------------------------------
 pub struct QueryBuilder<'a, DB: sqlx::Database, T: ModelMeta> {
     pub table: &'a str,
@@ -26,8 +26,9 @@ pub struct QueryBuilder<'a, DB: sqlx::Database, T: ModelMeta> {
     pub order_by: Option<(String, bool)>,
     pub limit: Option<u32>,
     pub offset: Option<u32>,
-    /// Valores para bindear, en el mismo orden que aparecen en el SQL final.
     pub values: Vec<BindArg>,
+    /// Modo count: SELECT count(*) en vez de SELECT columnas
+    count_mode: bool,
     pub _marker: PhantomData<(DB, T)>,
 }
 
@@ -42,6 +43,7 @@ impl<'a, DB: sqlx::Database + HasDialect, T: ModelMeta> QueryBuilder<'a, DB, T> 
             limit: None,
             offset: None,
             values: vec![],
+            count_mode: false,
             _marker: PhantomData,
         }
     }
@@ -51,14 +53,50 @@ impl<'a, DB: sqlx::Database + HasDialect, T: ModelMeta> QueryBuilder<'a, DB, T> 
         self
     }
 
-    /// Agrega un filtro con binding parametrizado.
-    /// El valor NO se interpolan en el SQL — se bindea como parámetro.
+    /// Filtro AND: col op ?
     pub fn filter(mut self, col: &str, op: &str, value: impl Into<BindArg>) -> Self {
         self.filters.push(Filter {
             column: col.to_string(),
             operator: op.to_string(),
+            is_or: false,
+            value_count: 1,
         });
         self.values.push(value.into());
+        self
+    }
+
+    /// Filtro OR: agrega OR col op ? en vez de AND
+    pub fn or_filter(mut self, col: &str, op: &str, value: impl Into<BindArg>) -> Self {
+        self.filters.push(Filter {
+            column: col.to_string(),
+            operator: op.to_string(),
+            is_or: true,
+            value_count: 1,
+        });
+        self.values.push(value.into());
+        self
+    }
+
+    /// Filtro IN: col IN (?, ?, ...)
+    pub fn filter_in(mut self, col: &str, values: impl IntoIterator<Item = impl Into<BindArg>>) -> Self {
+        let vals: Vec<BindArg> = values.into_iter().map(|v| v.into()).collect();
+        let count = vals.len();
+        if count == 0 {
+            return self; // IN vacío no agrega filtro
+        }
+        self.filters.push(Filter {
+            column: col.to_string(),
+            operator: "IN".to_string(),
+            is_or: false,
+            value_count: count,
+        });
+        self.values.extend(vals);
+        self
+    }
+
+    /// Modo COUNT: SELECT count(*) FROM ...
+    pub fn count(mut self) -> Self {
+        self.count_mode = true;
         self
     }
 
@@ -100,12 +138,14 @@ impl<'a, DB: sqlx::Database + HasDialect, T: ModelMeta> QueryBuilder<'a, DB, T> 
     }
 
     // ------------------------------------------------------------------
-    // build_sql — genera el SQL con placeholders del dialecto correcto
+    // build_sql
     // ------------------------------------------------------------------
     pub fn build_sql(&self) -> String {
         let mut placeholder_idx = 0;
 
-        let mut sql = if self.select_columns.is_empty() {
+        let mut sql = if self.count_mode {
+            format!("SELECT count(*) FROM {}", T::TABLE)
+        } else if self.select_columns.is_empty() {
             format!("SELECT * FROM {}", T::TABLE)
         } else {
             let cols = self.select_columns.join(", ");
@@ -121,11 +161,23 @@ impl<'a, DB: sqlx::Database + HasDialect, T: ModelMeta> QueryBuilder<'a, DB, T> 
             sql.push_str(" WHERE ");
             for (i, f) in self.filters.iter().enumerate() {
                 if i > 0 {
-                    sql.push_str(" AND ");
+                    sql.push_str(if f.is_or { " OR " } else { " AND " });
                 }
-                placeholder_idx += 1;
-                let ph = DB::Dialect::placeholder(placeholder_idx);
-                sql.push_str(&format!("{} {} {}", f.column, f.operator, ph));
+
+                if f.operator == "IN" {
+                    // Genera: col IN (?, ?, ...)
+                    let phs: Vec<String> = (1..=f.value_count)
+                        .map(|_| {
+                            placeholder_idx += 1;
+                            DB::Dialect::placeholder(placeholder_idx)
+                        })
+                        .collect();
+                    sql.push_str(&format!("{} IN ({})", f.column, phs.join(", ")));
+                } else {
+                    placeholder_idx += 1;
+                    let ph = DB::Dialect::placeholder(placeholder_idx);
+                    sql.push_str(&format!("{} {} {}", f.column, f.operator, ph));
+                }
             }
         }
 
@@ -144,10 +196,19 @@ impl<'a, DB: sqlx::Database + HasDialect, T: ModelMeta> QueryBuilder<'a, DB, T> 
 
         sql
     }
+
+    /// Helper: aplica limit(1) + order_by(id DESC) para first()
+    pub fn first_query(mut self) -> Self {
+        self.limit = Some(1);
+        if self.order_by.is_none() {
+            self.order_by = Some((T::TABLE.to_string() + ".id", false));
+        }
+        self
+    }
 }
 
 // ------------------------------------------------------------------
-// with_many — solo disponible cuando T: Model (no solo ModelMeta)
+// with_many
 // ------------------------------------------------------------------
 impl<'a, DB, T> QueryBuilder<'a, DB, T>
 where
