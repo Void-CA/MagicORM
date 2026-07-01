@@ -19,4 +19,6 @@ pub use crate::schema::create::create_table_sql;
 // External dependencies re-exportados
 pub use anyhow::Error;
 pub use paste::paste;
+
+#[cfg(feature = "sqlite")]
 pub use sqlx::SqlitePool;
