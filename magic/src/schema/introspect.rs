@@ -6,19 +6,17 @@ use sqlx::Executor;
 // ModelDescriptors compatibles con los generados por el derive.
 // =========================================================================
 
-/// Columna cruda desde PRAGMA table_info
 #[derive(Debug, sqlx::FromRow)]
 struct TableInfoRow {
     cid: i32,
     name: String,
     #[sqlx(rename = "type")]
     col_type: String,
-    notnull: i32,   // SQLite devuelve 0/1 como entero
+    notnull: i32,
     dflt_value: Option<String>,
-    pk: i32,        // Ídem
+    pk: i32,
 }
 
-/// FK cruda desde PRAGMA foreign_key_list
 #[derive(Debug, sqlx::FromRow)]
 struct ForeignKeyRow {
     id: i32,
@@ -30,7 +28,6 @@ struct ForeignKeyRow {
     on_delete: Option<String>,
 }
 
-/// Lista todas las tablas definidas por el usuario en la DB.
 pub(crate) async fn list_tables<'e, E>(executor: E) -> anyhow::Result<Vec<String>>
 where
     E: Executor<'e, Database = sqlx::Sqlite> + Copy,
@@ -45,10 +42,9 @@ where
     Ok(rows.into_iter().map(|r| r.0).collect())
 }
 
-/// Lee las columnas de una tabla vía PRAGMA table_info.
-async fn table_columns<'e, E>(executor: E, table: &str) -> anyhow::Result<Vec<ColumnMeta>>
+pub(crate) async fn table_columns<'e, E>(executor: E, table: &str) -> anyhow::Result<Vec<ColumnMeta>>
 where
-    E: Executor<'e, Database = sqlx::Sqlite>,
+    E: Executor<'e, Database = sqlx::Sqlite> + Copy,
 {
     let rows: Vec<TableInfoRow> = sqlx::query_as(&format!("PRAGMA table_info(\"{}\")", table))
         .fetch_all(executor)
@@ -58,22 +54,21 @@ where
     Ok(rows
         .into_iter()
         .map(|r| {
-            let sql_type = r.col_type.clone();
+            let col_type = r.col_type.clone();
             ColumnMeta {
-                name: Box::leak(r.name.into_boxed_str()),
-                sql_type: Box::leak(r.col_type.into_boxed_str()),
+                name: r.name,
+                sql_type: r.col_type,
                 nullable: r.notnull == 0,
                 primary_key: r.pk != 0,
-                auto_increment: r.pk != 0 && sql_type.to_uppercase().contains("INT"),
+                auto_increment: r.pk != 0 && col_type.to_uppercase().contains("INT"),
             }
         })
         .collect())
 }
 
-/// Lee las foreign keys de una tabla vía PRAGMA foreign_key_list.
-async fn table_foreign_keys<'e, E>(executor: E, table: &str) -> anyhow::Result<Vec<ForeignKeyMeta>>
+pub(crate) async fn table_foreign_keys<'e, E>(executor: E, table: &str) -> anyhow::Result<Vec<ForeignKeyMeta>>
 where
-    E: Executor<'e, Database = sqlx::Sqlite>,
+    E: Executor<'e, Database = sqlx::Sqlite> + Copy,
 {
     let rows: Vec<ForeignKeyRow> =
         sqlx::query_as(&format!("PRAGMA foreign_key_list(\"{}\")", table))
@@ -84,9 +79,9 @@ where
     Ok(rows
         .into_iter()
         .map(|r| ForeignKeyMeta {
-            field: Box::leak(r.from.into_boxed_str()),
-            related_column: Box::leak(r.to.into_boxed_str()),
-            related_table: Box::leak(r.table.into_boxed_str()),
+            field: r.from,
+            related_column: r.to,
+            related_table: r.table,
         })
         .collect())
 }
@@ -105,9 +100,9 @@ where
         let foreign_keys = table_foreign_keys(executor, table).await?;
 
         descriptors.push(ModelDescriptor {
-            table: Box::leak(table.clone().into_boxed_str()),
-            columns: Box::leak(columns.into_boxed_slice()),
-            foreign_keys: Box::leak(foreign_keys.into_boxed_slice()),
+            table: table.clone(),
+            columns,
+            foreign_keys,
         });
     }
 
@@ -157,25 +152,19 @@ mod tests {
         let pool = setup_db().await;
         let descriptors = describe_database(&pool).await.unwrap();
 
-        // Should find both tables
         assert_eq!(descriptors.len(), 2);
 
-        // Users table
         let users = descriptors.iter().find(|d| d.table == "users").unwrap();
         assert_eq!(users.columns.len(), 3);
         assert_eq!(users.columns[0].name, "id");
         assert!(users.columns[0].primary_key);
         assert!(users.columns[0].auto_increment);
-        // SQLite PRAGMA table_info returns notnull=0 for INTEGER PRIMARY KEY
-        // even though the column is effectively NOT NULL. We report what PRAGMA says.
-        assert!(users.columns[0].nullable);
         assert_eq!(users.columns[1].name, "name");
         assert!(!users.columns[1].nullable);
         assert_eq!(users.columns[2].name, "email");
         assert!(users.columns[2].nullable);
         assert_eq!(users.foreign_keys.len(), 0);
 
-        // Posts table
         let posts = descriptors.iter().find(|d| d.table == "posts").unwrap();
         assert_eq!(posts.columns.len(), 3);
         assert!(posts.columns[0].primary_key);

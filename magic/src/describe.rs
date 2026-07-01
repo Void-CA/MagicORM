@@ -9,7 +9,7 @@ pub trait Describe {
 }
 
 // ---------------------------------------------------------------------------
-// Helper para serializar todos los descriptores a JSON.
+// Helpers para serializar descriptors a JSON.
 // ---------------------------------------------------------------------------
 pub fn descriptors_to_json(models: &[ModelDescriptor]) -> Result<String, serde_json::Error> {
     serde_json::to_string_pretty(models)

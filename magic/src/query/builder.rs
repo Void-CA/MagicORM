@@ -84,7 +84,8 @@ impl<'a, DB: sqlx::Database + HasDialect, T: ModelMeta> QueryBuilder<'a, DB, T> 
         let base_table = T::TABLE;
         let join_table = U::TABLE;
 
-        let fk = U::foreign_keys()
+        let fks = U::foreign_keys();
+        let fk = fks
             .iter()
             .find(|fk| fk.related_table == base_table)
             .expect("No foreign key relationship found between models");

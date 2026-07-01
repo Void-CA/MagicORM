@@ -44,7 +44,7 @@ pub fn create_table_sql_from_descriptor(desc: &ModelDescriptor) -> String {
     let mut column_defs = Vec::new();
     let mut foreign_keys = Vec::new();
 
-    for col in desc.columns {
+    for col in &desc.columns {
         let mut def = format!("    {} {}", col.name, col.sql_type);
         if col.primary_key {
             def.push_str(" PRIMARY KEY");
@@ -55,7 +55,7 @@ pub fn create_table_sql_from_descriptor(desc: &ModelDescriptor) -> String {
         column_defs.push(def);
     }
 
-    for fk in desc.foreign_keys {
+    for fk in &desc.foreign_keys {
         foreign_keys.push(format!(
             "    FOREIGN KEY({}) REFERENCES {}({}) ON DELETE CASCADE",
             fk.field, fk.related_table, fk.related_column
@@ -77,16 +77,16 @@ where
     let start = Instant::now();
     let mut models = R::models();
     debug!(model_count = models.len(), "create_all started");
-    let mut created = HashSet::new();
+    let mut created: HashSet<String> = HashSet::new();
 
     while !models.is_empty() {
         let mut ready_indices = Vec::new();
 
         for (idx, model) in models.iter().enumerate() {
-            let deps: Vec<&str> = model
+            let deps: Vec<String> = model
                 .foreign_keys
                 .iter()
-                .map(|fk| fk.related_table)
+                .map(|fk| fk.related_table.clone())
                 .collect();
 
             if deps.iter().all(|d| created.contains(d)) {
@@ -95,32 +95,19 @@ where
         }
 
         if ready_indices.is_empty() {
-            debug!("create_all: cycle detected, remaining models: {:?}", models.iter().map(|m| m.table).collect::<Vec<_>>());
+            debug!("create_all: cycle detected, remaining models: {:?}", models.iter().map(|m| &m.table).collect::<Vec<_>>());
             anyhow::bail!("Schema cycle detected");
         }
 
         for &idx in &ready_indices {
             let model = &models[idx];
             let sql = create_table_sql_from_descriptor(model);
-            debug!(table = model.table, sql = %sql, "create_all: creating table");
+            debug!(table = %model.table, sql = %sql, "create_all: creating table");
 
             sqlx::query(&sql).execute(executor).await?;
 
-            debug!(table = model.table, "create_all: table created");
-            created.insert(model.table);
-        }
-
-        for &idx in &ready_indices {
-            let model = &models[idx];
-            let sql = create_table_sql_from_descriptor(model);
-
-            executor.execute(sql.as_str()).await?;
-
-            created.insert(model.table);
-        }
-
-        for &idx in ready_indices.iter().rev() {
-            models.remove(idx);
+            debug!(table = %model.table, "create_all: table created");
+            created.insert(model.table.clone());
         }
     }
 

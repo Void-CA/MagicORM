@@ -346,7 +346,7 @@ fn test_describe_foreign_keys() {
 fn test_describe_all_descriptors() {
     let descs = all_descriptors();
     assert_eq!(descs.len(), 3); // User, Post, Reaction
-    let tables: Vec<&str> = descs.iter().map(|d| d.table).collect();
+    let tables: Vec<&str> = descs.iter().map(|d| d.table.as_str()).collect();
     assert!(tables.contains(&"users"));
     assert!(tables.contains(&"posts"));
     assert!(tables.contains(&"reactions"));
