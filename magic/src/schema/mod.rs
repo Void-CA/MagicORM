@@ -1,6 +1,7 @@
 pub mod create;
 pub mod utils;
 pub mod introspect;
+pub mod migration;
 
 // ModelDescriptor y RegisteredModels viven en model::descriptor;
 // los re-exportamos aquí para mantener compatibilidad de paths existentes.

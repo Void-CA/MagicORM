@@ -4,7 +4,7 @@ use serde::Serialize;
 // ColumnMeta — descriptor estático de una columna
 // ---------------------------------------------------------------------------
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Debug, Clone, PartialEq)]
 pub struct ColumnMeta {
     pub name: &'static str,
     pub sql_type: &'static str,
@@ -17,7 +17,7 @@ pub struct ColumnMeta {
 // ForeignKeyMeta — descriptor estático de una clave foránea
 // ---------------------------------------------------------------------------
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone, PartialEq)]
 pub struct ForeignKeyMeta {
     pub field: &'static str,
     pub related_column: &'static str,
