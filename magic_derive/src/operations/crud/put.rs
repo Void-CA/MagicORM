@@ -20,7 +20,7 @@ pub fn generate_put(
             new: &#new_struct_name
         ) -> sqlx::Result<i64>
         where
-            E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+            E: sqlx::Executor<'e, Database = <#struct_name as ::magic_orm::model::Model>::DB>,
         {
             let cols = &[ #( #column_names ),* ];
             let sql = format!(
@@ -47,7 +47,7 @@ pub fn generate_newstruct_put(struct_name: &Ident, model: &ModelInfo) -> proc_ma
         impl #new_struct_name {
             pub async fn put<'e, E>(&self, executor: E, id: #id_type) -> sqlx::Result<i64>
             where
-                E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+                E: sqlx::Executor<'e, Database = <#struct_name as ::magic_orm::model::Model>::DB>,
             {
                 #struct_name::put(executor, id, self).await
             }

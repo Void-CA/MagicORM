@@ -9,8 +9,8 @@ pub fn generate_from_row_impl(struct_name: &syn::Ident, model: &ModelInfo) -> pr
     let other_names: Vec<_> = other_idents.iter().map(|i| i.to_string()).collect();
 
     quote! {
-        impl sqlx::FromRow<'_, sqlx::sqlite::SqliteRow> for #struct_name {
-            fn from_row(row: &sqlx::sqlite::SqliteRow) -> Result<Self, sqlx::Error> {
+        impl sqlx::FromRow<'_, <::magic_orm::db::DefaultDB as sqlx::Database>::Row> for #struct_name {
+            fn from_row(row: &<::magic_orm::db::DefaultDB as sqlx::Database>::Row) -> Result<Self, sqlx::Error> {
                 use sqlx::Row;
                 Ok(Self {
                     #id_ident: row.try_get(#id_name)?,

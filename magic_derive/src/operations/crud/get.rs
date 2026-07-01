@@ -15,7 +15,7 @@ pub fn generate_get(
     quote! {
         pub async fn get_all<'e, E>(executor: E) -> sqlx::Result<Vec<#struct_name>> 
         where
-            E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+            E: sqlx::Executor<'e, Database = <#struct_name as ::magic_orm::model::Model>::DB>,
         {
             let sql = format!(
                 "SELECT {} FROM {}",
@@ -45,7 +45,7 @@ pub fn generate_get_by_id(
     quote! {
         pub async fn get_by_id<'e, E>(executor: E, id: #id_type) -> sqlx::Result<Option<#struct_name>>
         where
-            E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+            E: sqlx::Executor<'e, Database = <#struct_name as ::magic_orm::model::Model>::DB>,
          {
             let sql = format!("SELECT {} FROM {} WHERE id = ?",
                 #all_columns_literal,

@@ -13,7 +13,7 @@ pub fn generate_model_impl(struct_name: &syn::Ident, model: &ModelInfo) -> proc_
                 "id"
             }
             
-            fn query<'a>() -> ::magic_orm::query::QueryBuilder<'a, Self> {
+            fn query<'a>() -> ::magic_orm::query::QueryBuilder<'a, Self::DB, Self> {
                 ::magic_orm::query::QueryBuilder::new(Self::TABLE)
             }
 

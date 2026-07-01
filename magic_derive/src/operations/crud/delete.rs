@@ -28,7 +28,7 @@ pub fn generate_delete_by_id(struct_name: &syn::Ident, model: &ModelInfo, table_
     quote! {
         pub async fn delete_by_id<'e, E>(executor: E, id: #id_type) -> sqlx::Result<usize>
         where
-            E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+            E: sqlx::Executor<'e, Database = <#struct_name as ::magic_orm::model::Model>::DB>,
         {
             let sql = format!("DELETE FROM {} WHERE id = ?", #table_name);
             let rows = sqlx::query(&sql)

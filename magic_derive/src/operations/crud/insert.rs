@@ -17,7 +17,7 @@ pub fn generate_insert(
             new: &#new_struct_name
         ) -> sqlx::Result<i64>
         where
-            E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+            E: sqlx::Executor<'e, Database = <#struct_name as ::magic_orm::model::Model>::DB>,
         {
             let cols = &[ #( #column_names ),* ];
             let placeholders = vec!["?"; cols.len()].join(", ");
@@ -47,7 +47,7 @@ pub fn generate_newstruct_insert(struct_name: &Ident) -> proc_macro2::TokenStrea
                 executor: E
             ) -> sqlx::Result<i64>
             where
-                E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+                E: sqlx::Executor<'e, Database = <#struct_name as ::magic_orm::model::Model>::DB>,
             {
                 #struct_name::insert(executor, self).await
             }
