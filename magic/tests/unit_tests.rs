@@ -469,3 +469,80 @@ fn test_filter_in_empty() {
         .build_sql();
     assert_eq!(sql, "SELECT * FROM users"); // no filter added
 }
+
+#[test]
+fn test_filter_in_strings() {
+    let sql = User::query()
+        .filter_in("name", ["Alice", "Bob"])
+        .build_sql();
+    assert_eq!(sql, "SELECT * FROM users WHERE name IN (?, ?)");
+}
+
+#[test]
+fn test_filter_in_single() {
+    let sql = User::query()
+        .filter_in("id", [42i64])
+        .build_sql();
+    assert_eq!(sql, "SELECT * FROM users WHERE id IN (?)");
+}
+
+#[test]
+fn test_count_with_join() {
+    let sql = User::query()
+        .count()
+        .join::<Post>()
+        .filter("users.name", "=", "Alice")
+        .build_sql();
+    assert!(sql.starts_with("SELECT count(*) FROM users"));
+    assert!(sql.contains("LEFT JOIN"));
+    assert!(sql.contains("WHERE"));
+}
+
+#[test]
+fn test_and_or_filter_precedence() {
+    // Multiple OR filters followed by AND
+    let sql = User::query()
+        .filter("active", "=", true)
+        .or_filter("name", "=", "Admin")
+        .or_filter("role", "=", "moderator")
+        .build_sql();
+    assert_eq!(sql, "SELECT * FROM users WHERE active = ? OR name = ? OR role = ?");
+}
+
+#[test]
+fn test_filter_in_with_or() {
+    // filter_in uses AND internally (IN is a condition, not a connector)
+    let sql = User::query()
+        .filter("active", "=", true)
+        .filter_in("id", [1i64, 2i64])
+        .or_filter("name", "=", "Admin")
+        .build_sql();
+    assert_eq!(sql, "SELECT * FROM users WHERE active = ? AND id IN (?, ?) OR name = ?");
+}
+
+#[test]
+fn test_values_order_matches_placeholders() {
+    let qb = User::query()
+        .filter("name", "=", "Alice")
+        .filter_in("id", [1i64, 2i64, 3i64])
+        .or_filter("age", ">", 18);
+
+    let sql = qb.build_sql();
+    assert_eq!(sql, "SELECT * FROM users WHERE name = ? AND id IN (?, ?, ?) OR age > ?");
+    assert_eq!(qb.values.len(), 5);
+    assert!(matches!(&qb.values[0], BindArg::Text(s) if s == "Alice"));
+    assert!(matches!(&qb.values[1], BindArg::I64(1)));
+    assert!(matches!(&qb.values[2], BindArg::I64(2)));
+    assert!(matches!(&qb.values[3], BindArg::I64(3)));
+    assert!(matches!(&qb.values[4], BindArg::I64(18)));
+}
+
+#[test]
+fn test_describe_uuid_model() {
+    let desc = <Document as magic_orm::describe::Describe>::descriptor();
+    assert_eq!(desc.table, "documents");
+    // UUID id column should be TEXT in SQLite
+    assert_eq!(desc.columns[0].sql_type, "TEXT");
+    assert!(desc.columns[0].primary_key);
+    assert!(desc.columns[0].auto_increment); // PK auto-infers auto_increment
+}

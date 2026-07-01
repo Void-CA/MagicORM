@@ -34,10 +34,18 @@ pub struct Reaction {
     pub user_id: i64,
 }
 
+// Modelo con UUID como ID
+#[derive(MagicModel, Debug)]
+#[magic(table = "documents")]
+pub struct Document {
+    pub id: uuid::Uuid,
+    pub title: String,
+}
+
 has_many!(User => Post, Reaction);
 has_many!(Post => Reaction);
 
-register_models!(User, Post, Reaction);
+register_models!(User, Post, Reaction, Document);
 
 async fn setup_pool() -> SqlitePool {
     let mut pool = SqlitePool::connect("sqlite::memory:").await.unwrap();
@@ -137,4 +145,31 @@ async fn test_has_many_relationship() {
     let fetched_posts = user.posts(&pool).await.unwrap();
     assert_eq!(fetched_posts.len(), 1);
     assert_eq!(fetched_posts[0].user_id, user_id);
+}
+
+#[tokio::test]
+async fn test_uuid_crud() {
+    let pool = setup_pool().await;
+
+    let doc_id = uuid::Uuid::new_v4();
+    // Insert con UUID manual (el insert devuelve i64, no uuid::Uuid)
+    sqlx::query("INSERT INTO documents (id, title) VALUES (?, ?)")
+        .bind(doc_id)
+        .bind("UUID Document")
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    // Leer por UUID
+    let doc = Document::get_by_id(&pool, doc_id).await.unwrap().unwrap();
+    assert_eq!(doc.title, "UUID Document");
+
+    // QueryBuilder con UUID
+    let docs = Document::query()
+        .filter("id", "=", doc_id)
+        .fetch_all(&pool)
+        .await
+        .unwrap();
+    assert_eq!(docs.len(), 1);
+    assert_eq!(docs[0].title, "UUID Document");
 }
