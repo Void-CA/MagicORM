@@ -2,14 +2,12 @@ use clap::{Parser, Subcommand};
 
 mod db;
 mod migrate;
-mod model_loader;
 
 #[derive(Parser)]
 #[command(name = "magic")]
-#[command(about = "CLI de MagicORM para manejo de DB y migraciones")]
+#[command(about = "MagicORM CLI")]
 struct Cli {
-    /// Ruta de la base de datos (opcional)
-    #[arg(long)]
+    #[arg(long, help = "Ruta de la base de datos")]
     db_path: Option<String>,
 
     #[command(subcommand)]
@@ -18,15 +16,16 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
+    /// Inicializa la base de datos
     Db {
         #[command(subcommand)]
         action: DbAction,
     },
-    // Migrate {
-    //     #[command(subcommand)]
-    //     action: MigrateAction,
-    // },
-    Status,
+    /// Gestión de migraciones
+    Migrate {
+        #[command(subcommand)]
+        action: MigrateAction,
+    },
 }
 
 #[derive(Subcommand)]
@@ -36,9 +35,16 @@ enum DbAction {
 
 #[derive(Subcommand)]
 enum MigrateAction {
-    Generate,
+    /// Crea una migración vacía
+    New { name: String },
+    /// Genera una migración desde los modelos (requiere setup adicional)
+    Generate { name: String },
+    /// Aplica migraciones pendientes
     Up,
+    /// Revierte la última migración
     Down,
+    /// Muestra el estado de las migraciones
+    Status,
 }
 
 #[tokio::main]
@@ -49,11 +55,15 @@ async fn main() {
         Commands::Db { action } => match action {
             DbAction::Init { path } => db::init(&path.or(cli.db_path.clone())).await.unwrap(),
         },
-        // Commands::Migrate { action } => match action {
-        //     MigrateAction::Generate => migrate::generate(&cli.db_path).unwrap(),
-        //     MigrateAction::Up => migrate::up(&cli.db_path).unwrap(),
-        //     MigrateAction::Down => migrate::down(&cli.db_path).unwrap(),
-        // },
-        Commands::Status => migrate::status(&cli.db_path).await.unwrap(),
+        Commands::Migrate { action } => {
+            let db_path = cli.db_path.unwrap_or_else(|| "magic.db".to_string());
+            match action {
+                MigrateAction::New { name } => migrate::new(&name).unwrap(),
+                MigrateAction::Generate { name } => migrate::generate(&name).await.unwrap(),
+                MigrateAction::Up => migrate::up(&db_path).await.unwrap(),
+                MigrateAction::Down => migrate::down(&db_path).await.unwrap(),
+                MigrateAction::Status => migrate::status(&db_path).await.unwrap(),
+            }
+        }
     }
 }
