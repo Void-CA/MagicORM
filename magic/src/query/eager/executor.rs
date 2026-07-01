@@ -2,32 +2,34 @@ use crate::model::{Model, ModelMeta};
 use crate::prelude::HasFK;
 use crate::query::eager::{EagerQueryBuilder, WithMany};
 
-impl<'a, P: Model, C: Model> EagerQueryBuilder<'a, P, C>
-where
-    P: ModelMeta + Send + Unpin,
-    P::Id: Clone + Eq + std::hash::Hash + for<'q> sqlx::Encode<'q, sqlx::Sqlite> + sqlx::Type<sqlx::Sqlite>,
-    C: Model
-        + ModelMeta
-        + HasFK<P>
-        + Send
-        + Unpin
-        + for<'r> sqlx::FromRow<'r, sqlx::sqlite::SqliteRow>,
-{
-    pub async fn fetch_all<E>(self, executor: E) -> anyhow::Result<WithMany<P, C>>
-    where
-        E: sqlx::Executor<'a, Database = sqlx::Sqlite> + Copy,
-    {
-        // 1️⃣ traer padres usando el QueryBuilder interno
-        let parents = self.inner.fetch_all(executor).await?;
+use sqlx::Executor;
 
-        // 2️⃣ eager loading directo
-        let children =
-            crate::relations::loaders::has_many::eager::load_has_many_batch::<P, C, E>(
-                &parents,
-                executor,
-            )
-            .await?;
+macro_rules! impl_eager_executor {
+    ($db:ty) => {
+        impl<'a, P, C> EagerQueryBuilder<'a, $db, P, C>
+        where
+            P: Model<DB = $db> + ModelMeta + Send + Unpin,
+            P::Id: Clone + Eq + std::hash::Hash,
+            C: Model<DB = $db> + ModelMeta + HasFK<P> + Send + Unpin,
+        {
+            pub async fn fetch_all(self, executor: impl Executor<'_, Database = $db> + Copy) -> anyhow::Result<WithMany<P, C>> {
+                let parents = self.inner.fetch_all(executor).await?;
 
-        Ok(WithMany { parents, children })
-    }
+                let children =
+                    crate::relations::loaders::has_many::eager::load_has_many_batch::<P, C>(
+                        &parents,
+                        executor,
+                    )
+                    .await?;
+
+                Ok(WithMany { parents, children })
+            }
+        }
+    };
 }
+
+#[cfg(feature = "sqlite")]
+impl_eager_executor!(sqlx::Sqlite);
+
+#[cfg(feature = "postgres")]
+impl_eager_executor!(sqlx::Postgres);

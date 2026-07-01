@@ -1,191 +1,84 @@
-use std::marker::PhantomData;
+use crate::dialect::HasDialect;
+use crate::model::ModelMeta;
+use crate::query::builder::QueryBuilder;
+use crate::query::statement::BindArg;
 
-use crate::query::{EagerQueryBuilder, QueryBuilder};
-use crate::model::{ModelMeta, Model};
-use crate::prelude::HasFK;
+use sqlx::Executor;
 
-use sqlx;
-use sqlx::{Executor, Sqlite};
+// =========================================================================
+// Macro — genera métodos de ejecución para un DB concreto.
+// Necesario porque sqlx::Encode y sqlx::Type se implementan por DB concreto,
+// no para Database genérico.
+// =========================================================================
+macro_rules! impl_query_executor {
+    ($db:ty) => {
+        impl<'a, T: ModelMeta + Send + Unpin> QueryBuilder<'a, $db, T>
+        where for<'r> T: sqlx::FromRow<'r, <$db as sqlx::Database>::Row>,
+        {
+            pub async fn fetch_all(mut self, executor: impl Executor<'_, Database = $db>) -> anyhow::Result<Vec<T>> {
+                let sql = self.build_sql();
+                let mut q = sqlx::query_as::<_, T>(&sql);
+                for v in self.values {
+                    q = match v {
+                        BindArg::I64(v) => q.bind(v),
+                        BindArg::F64(v) => q.bind(v),
+                        BindArg::Text(v) => q.bind(v),
+                        BindArg::Bool(v) => q.bind(v),
+                    };
+                }
+                q.fetch_all(executor).await.map_err(|e| anyhow::anyhow!(e))
+            }
 
-impl<'a, T> QueryBuilder<'a, T>
-where
-    T: ModelMeta + for<'r> sqlx::FromRow<'r, sqlx::sqlite::SqliteRow> + Send + Unpin,
-{
-    pub async fn fetch_all<E>(self, executor: E) -> anyhow::Result<Vec<T>>
-    where
-        E: Executor<'a, Database = Sqlite>,
-    {
-        let sql = self.build_sql();
-        let rows = sqlx::query_as::<_, T>(&sql)
-            .fetch_all(executor)
-            .await
-            .map_err(|e| anyhow::anyhow!(e))?;
-        Ok(rows)
-    }
+            pub async fn fetch_one(mut self, executor: impl Executor<'_, Database = $db>) -> anyhow::Result<T> {
+                let sql = self.build_sql();
+                let mut q = sqlx::query_as::<_, T>(&sql);
+                for v in self.values {
+                    q = match v {
+                        BindArg::I64(v) => q.bind(v),
+                        BindArg::F64(v) => q.bind(v),
+                        BindArg::Text(v) => q.bind(v),
+                        BindArg::Bool(v) => q.bind(v),
+                    };
+                }
+                q.fetch_one(executor).await.map_err(|e| anyhow::anyhow!(e))
+            }
 
-    pub async fn fetch_one<E>(self, executor: E) -> anyhow::Result<T>
-    where
-        E: Executor<'a, Database = Sqlite>,
-    {
-        let sql = self.build_sql();
-        let row = sqlx::query_as::<_, T>(&sql)
-            .fetch_one(executor)
-            .await
-            .map_err(|e| anyhow::anyhow!(e))?;
-        Ok(row)
-    }
+            pub async fn fetch_optional(mut self, executor: impl Executor<'_, Database = $db>) -> anyhow::Result<Option<T>> {
+                let sql = self.build_sql();
+                let mut q = sqlx::query_as::<_, T>(&sql);
+                for v in self.values {
+                    q = match v {
+                        BindArg::I64(v) => q.bind(v),
+                        BindArg::F64(v) => q.bind(v),
+                        BindArg::Text(v) => q.bind(v),
+                        BindArg::Bool(v) => q.bind(v),
+                    };
+                }
+                q.fetch_optional(executor).await.map_err(|e| anyhow::anyhow!(e))
+            }
+        }
 
-    pub async fn fetch_optional<E>(self, executor: E) -> anyhow::Result<Option<T>>
-    where
-        E: Executor<'a, Database = Sqlite>,
-    {
-        let sql = self.build_sql();
-        let row = sqlx::query_as::<_, T>(&sql)
-            .fetch_optional(executor)
-            .await
-            .map_err(|e| anyhow::anyhow!(e))?;
-        Ok(row)
-    }
-
-    pub async fn execute<E>(self, executor: E) -> anyhow::Result<u64>
-    where
-        E: Executor<'a, Database = Sqlite>,
-    {
-        let sql = self.build_sql();
-        let result = sqlx::query(&sql)
-            .execute(executor)
-            .await
-            .map_err(|e| anyhow::anyhow!(e))?;
-        Ok(result.rows_affected())
-    }
+        impl<'a, T: ModelMeta> QueryBuilder<'a, $db, T> {
+            pub async fn execute(mut self, executor: impl Executor<'_, Database = $db>) -> anyhow::Result<u64> {
+                let sql = self.build_sql();
+                let mut q = sqlx::query(&sql);
+                for v in self.values {
+                    q = match v {
+                        BindArg::I64(v) => q.bind(v),
+                        BindArg::F64(v) => q.bind(v),
+                        BindArg::Text(v) => q.bind(v),
+                        BindArg::Bool(v) => q.bind(v),
+                    };
+                }
+                let result = q.execute(executor).await.map_err(|e| anyhow::anyhow!(e))?;
+                Ok(result.rows_affected())
+            }
+        }
+    };
 }
 
-impl<'a, T> QueryBuilder<'a, T>
-where
-    T: ModelMeta
-        + for<'r> sqlx::FromRow<'r, sqlx::sqlite::SqliteRow>
-        + Send
-        + Unpin,
-{
-    pub fn new(table: &'a str) -> Self {
-        Self {
-            table,
-            select_columns: vec![],
-            filters: vec![],
-            joins: vec![],
-            order_by: None,
-            limit: None,
-            offset: None,
-            _marker: std::marker::PhantomData,
-        }
-    }
+#[cfg(feature = "sqlite")]
+impl_query_executor!(sqlx::Sqlite);
 
-    pub fn select(mut self, cols: &[&'a str]) -> Self {
-        self.select_columns = cols.to_vec();
-        self
-    }
-
-    pub fn filter(mut self, col: &str, op: &str, value: impl ToString) -> Self {
-        self.filters.push(format!("{} {} '{}'", col, op, value.to_string()));
-        self
-    }
-
-    pub fn order_by(mut self, col: &str, asc: bool) -> Self {
-        self.order_by = Some(format!("{} {}", col, if asc { "ASC" } else { "DESC" }));
-        self
-    }
-
-    pub fn limit(mut self, lim: u32) -> Self {
-        self.limit = Some(lim);
-        self
-    }
-
-    pub fn offset(mut self, off: u32) -> Self {
-        self.offset = Some(off);
-        self
-    }
-
-    pub fn join<U>(mut self) -> Self
-    where
-        U: ModelMeta,
-    {
-        let base_table = T::TABLE;
-        let join_table = U::TABLE;
-
-        let fk = U::foreign_keys()
-            .iter()
-            .find(|fk| fk.related_table == base_table)
-            .expect("No foreign key relationship found between models");
-
-        let on_clause = format!(
-            "{}.{} = {}.{}",
-            base_table,
-            fk.related_column,
-            join_table,
-            fk.field,
-        );
-
-        self.joins.push(format!("LEFT JOIN {} ON {}", join_table, on_clause));
-        self
-    }
-
-    fn build_sql(&self) -> String {
-        let mut sql = if self.select_columns.is_empty() {
-            format!("SELECT * FROM {}", T::TABLE)
-        } else {
-            format!("SELECT {} FROM {}", self.select_columns.join(", "), self.table)
-        };
-
-        if !self.joins.is_empty() {
-            sql.push(' ');
-            sql.push_str(&self.joins.join(" "));
-        }
-
-        if !self.filters.is_empty() {
-            sql.push_str(" WHERE ");
-            sql.push_str(&self.filters.join(" AND "));
-        }
-
-        if let Some(order) = &self.order_by {
-            sql.push_str(" ORDER BY ");
-            sql.push_str(order);
-        }
-
-        if let Some(limit) = self.limit {
-            sql.push_str(&format!(" LIMIT {}", limit));
-        }
-
-        if let Some(offset) = self.offset {
-            sql.push_str(&format!(" OFFSET {}", offset));
-        }
-
-        sql
-    }
-
-}
-
-
-impl<'a, T> QueryBuilder<'a, T>
-where
-    T: Model
-        + ModelMeta
-        + for<'r> sqlx::FromRow<'r, sqlx::sqlite::SqliteRow>
-        + Send
-        + Unpin,
-    T::Id: Clone + Eq + std::hash::Hash + std::fmt::Display + for<'q> sqlx::Encode<'q, sqlx::Sqlite> + sqlx::Type<sqlx::Sqlite>,
-{
-    pub fn with_many<C>(self) -> EagerQueryBuilder<'a, T, C>
-    where
-        C: Model
-            + HasFK<T>
-            + ModelMeta
-            + for<'r> sqlx::FromRow<'r, sqlx::sqlite::SqliteRow>
-            + Send
-            + Unpin,
-    {
-        EagerQueryBuilder {
-            _marker: PhantomData,
-            inner: self,
-        }
-    }
-}
+#[cfg(feature = "postgres")]
+impl_query_executor!(sqlx::Postgres);

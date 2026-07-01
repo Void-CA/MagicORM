@@ -1,3 +1,4 @@
+use crate::dialect::HasDialect;
 use crate::model::meta::ModelMeta;
 use crate::relations::traits::HasFK;
 
@@ -12,12 +13,18 @@ pub trait Model:
     + Unpin
     + for<'r> sqlx::FromRow<'r, <Self::DB as sqlx::Database>::Row>
 {
-    type Id: Send + std::fmt::Display + Clone + Eq + std::hash::Hash;
-    type DB: sqlx::Database;
+    type Id: Send
+        + std::fmt::Display
+        + Clone
+        + Eq
+        + std::hash::Hash
+        + for<'q> sqlx::Encode<'q, Self::DB>
+        + sqlx::Type<Self::DB>;
+    type DB: sqlx::Database + HasDialect;
 
     fn id(&self) -> &Self::Id;
 
-    fn query<'a>() -> crate::query::QueryBuilder<'a, Self> {
+    fn query<'a>() -> crate::query::QueryBuilder<'a, Self::DB, Self> {
         crate::query::QueryBuilder::new(Self::TABLE)
     }
 
@@ -41,17 +48,17 @@ pub trait BelongsTo<P: Model>: Model {
 #[async_trait::async_trait]
 pub trait HasMany<C>: Model
 where
-    C: Model
+    C: Model<DB = Self::DB>
         + ModelMeta
         + HasFK<Self>
         + Send
-        + Unpin
-        + for<'r> sqlx::FromRow<'r, <Self::DB as sqlx::Database>::Row>,
+        + Unpin,
 {
     async fn load_children<'e, E>(&self, executor: E) -> anyhow::Result<Vec<C>>
     where
         E: sqlx::Executor<'e, Database = Self::DB>,
+        for<'q> <Self::DB as sqlx::Database>::Arguments<'q>: sqlx::IntoArguments<'q, Self::DB>,
     {
-        crate::relations::load_has_many::<Self, C, E>(self, executor).await
+        crate::relations::load_has_many(self, executor).await
     }
 }

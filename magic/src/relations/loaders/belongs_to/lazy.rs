@@ -1,19 +1,19 @@
-use crate::model::{Model, ModelMeta};
+use sqlx::{Database, IntoArguments};
+use crate::model::Model;
 
-pub async fn load_belongs_to<'e, R, E>(
-    executor: E,
-    id: R::Id,
-) -> anyhow::Result<R>
+/// Carga lazy del padre por FK.
+pub async fn load_belongs_to<'e, P>(
+    executor: impl sqlx::Executor<'e, Database = P::DB>,
+    id: <P as Model>::Id,
+) -> anyhow::Result<P>
 where
-    R: Model + ModelMeta + for<'r> sqlx::FromRow<'r, sqlx::sqlite::SqliteRow> + Send + Unpin,
-    R::Id: for<'q> sqlx::Encode<'q, sqlx::Sqlite> + sqlx::Type<sqlx::Sqlite>,
-    E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    P: Model,
+    for<'q> <P::DB as Database>::Arguments<'q>: IntoArguments<'q, P::DB>,
 {
-    let sql = format!("SELECT * FROM {} WHERE id = ?", R::TABLE);
-    let row = sqlx::query_as::<_, R>(&sql)
+    let sql = format!("SELECT * FROM {} WHERE id = ?", P::TABLE);
+    sqlx::query_as::<_, P>(&sql)
         .bind(id)
         .fetch_one(executor)
         .await
-        .map_err(|e| anyhow::anyhow!(e))?;
-    Ok(row)
+        .map_err(|e| anyhow::anyhow!(e))
 }

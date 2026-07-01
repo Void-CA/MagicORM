@@ -20,9 +20,9 @@ macro_rules! has_many {
                 $(
                     pub async fn [<$child:snake s>]<'e, E>(&self, executor: E) -> anyhow::Result<Vec<$child>>
                     where
-                        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+                        E: sqlx::Executor<'e, Database = <$model as $crate::model::Model>::DB>,
                     {
-                        $crate::relations::load_has_many::<$model, $child, E>(self, executor).await
+                        $crate::relations::load_has_many(self, executor).await
                     }
                 )+
             }

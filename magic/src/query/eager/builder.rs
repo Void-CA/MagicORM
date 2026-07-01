@@ -1,39 +1,19 @@
 use crate::model::Model;
-use crate::prelude::HasFK;
 use crate::query::QueryBuilder;
 use std::collections::HashMap;
 use std::marker::PhantomData;
 
+use sqlx::Database;
+
 /// EagerQueryBuilder permite encadenar filtros y luego cargar relaciones con `fetch_all`.
-/// Utiliza composición interna con `inner: QueryBuilder` y delegación manual.
-pub struct EagerQueryBuilder<'a, P: Model, C> {
-    pub inner: QueryBuilder<'a, P>,
+pub struct EagerQueryBuilder<'a, DB: Database, P: Model<DB = DB>, C> {
+    pub inner: QueryBuilder<'a, DB, P>,
     pub _marker: PhantomData<C>,
 }
 
-// Delegación manual de métodos necesarios
-impl<'a, P: Model, C> EagerQueryBuilder<'a, P, C> {
-    pub fn filter(mut self, col: &str, op: &str, value: impl std::string::ToString) -> Self {
-        self.inner = self.inner.filter(col, op, value);
-        self
-    }
-
-    pub fn order_by(mut self, col: &str, asc: bool) -> Self {
-        self.inner = self.inner.order_by(col, asc);
-        self
-    }
-
-    pub fn limit(mut self, lim: u32) -> Self {
-        self.inner = self.inner.limit(lim);
-        self
-    }
-
-    pub fn offset(mut self, off: u32) -> Self {
-        self.inner = self.inner.offset(off);
-        self
-    }
-}
-
+// ---------------------------------------------------------------------------
+// ConWithMany — resultado de eager loading con padres e hijos agrupados.
+// ---------------------------------------------------------------------------
 #[derive(Debug)]
 pub struct WithMany<P: Model, C> {
     pub parents: Vec<P>,

@@ -1,22 +1,22 @@
-use crate::model::{Model, ModelMeta};
+use sqlx::{Database, IntoArguments};
+use crate::model::Model;
 use crate::relations::traits::HasFK;
 
-pub async fn load_has_many<'e, P, C, E>(
+/// Carga lazy de hijos para un padre.
+pub async fn load_has_many<'e, P, C>(
     parent: &P,
-    executor: E,
+    executor: impl sqlx::Executor<'e, Database = P::DB>,
 ) -> anyhow::Result<Vec<C>>
 where
     P: Model,
-    P::Id: Clone + Eq + std::hash::Hash,
-    C: Model + ModelMeta + HasFK<P> + for<'r> sqlx::FromRow<'r, sqlx::sqlite::SqliteRow> + Send + Unpin,
-    E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    C: Model<DB = P::DB> + HasFK<P>,
+    for<'q> <P::DB as Database>::Arguments<'q>: IntoArguments<'q, P::DB>,
 {
     let fk_column = C::fk_for_parent();
-    let rows = C::query()
-        .filter(fk_column, "=", parent.id())
+    let sql = format!("SELECT * FROM {} WHERE {} = ?", C::TABLE, fk_column);
+    sqlx::query_as::<_, C>(&sql)
+        .bind(parent.id().clone())
         .fetch_all(executor)
         .await
-        .map_err(|e| anyhow::anyhow!(e))?;
-
-    Ok(rows)
+        .map_err(|e| anyhow::anyhow!(e))
 }
