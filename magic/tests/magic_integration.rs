@@ -46,7 +46,7 @@ async fn setup_pool() -> SqlitePool {
         .await
         .unwrap();
 
-    create_all::<SqlitePool, AppModels>(&mut pool).await.unwrap();
+    create_all::<_, AppModels>(&pool).await.unwrap();
     pool
 }
 

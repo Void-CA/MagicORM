@@ -30,13 +30,13 @@ register_models!(User, Product);
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     // Conectar a base de datos en memoria
-    let mut pool = SqlitePool::connect("sqlite::memory:").await?;
+    let pool = SqlitePool::connect("sqlite::memory:").await?;
     sqlx::query("PRAGMA foreign_keys = ON;")
         .execute(&pool)
         .await?;
 
     // Crear tablas
-    create_all::<SqlitePool, AppModels>(&mut pool).await?;
+    create_all::<_, AppModels>(&pool).await?;
 
     println!("=== Demostración de ID Genérico ===\n");
 

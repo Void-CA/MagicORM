@@ -5,7 +5,6 @@ pub mod crud;    // Helpers CRUD compartidos multi-backend
 pub mod query;
 pub mod relations;
 pub mod schema;
-pub mod executor;
 pub mod prelude;
 
 pub use magic_derive::MagicModel;

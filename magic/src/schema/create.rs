@@ -1,6 +1,5 @@
-// schema.rs
-use crate::executor::Executor;
 use crate::model::{ModelMeta, ModelDescriptor, RegisteredModels};
+use sqlx::Executor;
 use std::collections::HashSet;
 
 /// Genera SQL de creación de tabla
@@ -66,9 +65,9 @@ pub fn create_table_sql_from_descriptor(desc: &ModelDescriptor) -> String {
     sql
 }
 
-pub async fn create_all<E, R>(executor: &mut E) -> anyhow::Result<()>
+pub async fn create_all<'e, E, R>(executor: E) -> anyhow::Result<()>
 where
-    E: Executor,
+    E: Executor<'e> + Copy,
     R: RegisteredModels,
 {
     let mut models = R::models();
@@ -77,7 +76,6 @@ where
     while !models.is_empty() {
         let mut ready_indices = Vec::new();
 
-        // 1️⃣ detectar modelos listos
         for (idx, model) in models.iter().enumerate() {
             let deps: Vec<&str> = model
                 .foreign_keys
@@ -94,17 +92,15 @@ where
             anyhow::bail!("Schema cycle detected");
         }
 
-        // 2️⃣ crear tablas
         for &idx in &ready_indices {
             let model = &models[idx];
             let sql = create_table_sql_from_descriptor(model);
 
-            executor.execute(&sql).await?;
+            executor.execute(sql.as_str()).await?;
 
             created.insert(model.table);
         }
 
-        // 3️⃣ limpiar
         for &idx in ready_indices.iter().rev() {
             models.remove(idx);
         }

@@ -42,12 +42,12 @@ register_models!(User, Post, Reaction);
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let mut pool = SqlitePool::connect("sqlite://test.db").await?;
+    let pool = SqlitePool::connect("sqlite://test.db").await?;
     sqlx::query("PRAGMA foreign_keys = ON;")
         .execute(&pool)
         .await?;
 
-    create_all::<SqlitePool, AppModels>(&mut pool).await?;
+    create_all::<_, AppModels>(&pool).await?;
 
     let new_user = User::new("Alicia".into(), 25, "alicia@example.com".into());
 
