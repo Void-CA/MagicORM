@@ -15,25 +15,19 @@ pub fn generate_insert(
         pub async fn insert<'e, E>(
             executor: E,
             new: &#new_struct_name
-        ) -> sqlx::Result<i64>
+        ) -> ::anyhow::Result<i64>
         where
-            E: sqlx::Executor<'e, Database = <#struct_name as ::magic_orm::model::Model>::DB>,
+            E: ::sqlx::Executor<'e, Database = <#struct_name as ::magic_orm::model::Model>::DB>,
         {
-            let cols = &[ #( #column_names ),* ];
-            let placeholders = vec!["?"; cols.len()].join(", ");
-            let sql = format!(
-                "INSERT INTO {} ({}) VALUES ({})",
+            let values = vec![
+                #( ::magic_orm::query::statement::BindArg::from(&new.#idents), )*
+            ];
+            ::magic_orm::crud::insert::<#struct_name>(
+                executor,
                 #table_name,
-                cols.join(", "),
-                placeholders
-            );
-
-            let mut query = sqlx::query(&sql);
-            #( query = query.bind(&new.#idents); )*
-
-            let result = query.execute(executor).await?;
-
-            Ok(result.last_insert_rowid() as i64)
+                &[ #( #column_names ),* ],
+                values,
+            ).await
         }
     }
 }
@@ -45,9 +39,9 @@ pub fn generate_newstruct_insert(struct_name: &Ident) -> proc_macro2::TokenStrea
             pub async fn insert<'e, E>(
                 &self,
                 executor: E
-            ) -> sqlx::Result<i64>
+            ) -> ::anyhow::Result<i64>
             where
-                E: sqlx::Executor<'e, Database = <#struct_name as ::magic_orm::model::Model>::DB>,
+                E: ::sqlx::Executor<'e, Database = <#struct_name as ::magic_orm::model::Model>::DB>,
             {
                 #struct_name::insert(executor, self).await
             }
