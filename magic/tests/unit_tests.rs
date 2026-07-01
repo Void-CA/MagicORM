@@ -1,0 +1,303 @@
+use magic_orm::{prelude::*, register_models};
+use magic_orm::query::statement::BindArg;
+use magic_orm::dialect::{SqlDialect, SqliteDialect, PostgresDialect};
+use magic_orm::relations::traits::RelationList;
+
+// ---------------------------------------------------------------------------
+// Test model — minimal para pruebas sin DB
+// ---------------------------------------------------------------------------
+#[derive(MagicModel, Debug)]
+#[magic(table = "users")]
+pub struct User {
+    pub id: i64,
+    pub name: String,
+    pub age: i32,
+}
+
+#[derive(MagicModel, Debug)]
+#[magic(table = "posts")]
+pub struct Post {
+    pub id: i64,
+    pub title: String,
+    pub content: String,
+    #[FK(User)]
+    pub user_id: i64,
+}
+
+#[derive(MagicModel, Debug)]
+#[magic(table = "reactions")]
+pub struct Reaction {
+    pub id: i64,
+    pub reaction_type: String,
+    #[FK(Post)]
+    pub post_id: i64,
+    #[FK(User)]
+    pub user_id: i64,
+}
+
+has_many!(User => Post, Reaction);
+has_many!(Post => Reaction);
+
+register_models!(User, Post, Reaction);
+
+// =========================================================================
+// BindArg
+// =========================================================================
+#[test]
+fn test_bind_arg_from_i64() {
+    assert!(matches!(BindArg::from(42i64), BindArg::I64(42)));
+}
+
+#[test]
+fn test_bind_arg_from_i32() {
+    assert!(matches!(BindArg::from(42i32), BindArg::I64(42)));
+}
+
+#[test]
+fn test_bind_arg_from_f64() {
+    let v = 3.14f64;
+    let arg = BindArg::from(v);
+    assert!(matches!(arg, BindArg::F64(x) if (x - 3.14).abs() < 0.001));
+}
+
+#[test]
+fn test_bind_arg_from_string() {
+    let arg = BindArg::from("hello".to_string());
+    assert!(matches!(arg, BindArg::Text(s) if s == "hello"));
+}
+
+#[test]
+fn test_bind_arg_from_str() {
+    let arg = BindArg::from("world");
+    assert!(matches!(arg, BindArg::Text(s) if s == "world"));
+}
+
+#[test]
+fn test_bind_arg_from_bool() {
+    assert!(matches!(BindArg::from(true), BindArg::Bool(true)));
+    assert!(matches!(BindArg::from(false), BindArg::Bool(false)));
+}
+
+#[test]
+fn test_bind_arg_from_ref_i64() {
+    let v = &99i64;
+    let arg = BindArg::from(v);
+    assert!(matches!(arg, BindArg::I64(99)));
+}
+
+#[test]
+fn test_bind_arg_from_ref_string() {
+    let s = String::from("ref");
+    let arg = BindArg::from(&s);
+    assert!(matches!(arg, BindArg::Text(t) if t == "ref"));
+}
+
+// =========================================================================
+// SqlDialect — placeholders
+// =========================================================================
+#[test]
+fn test_sqlite_placeholder_always_question_mark() {
+    assert_eq!(SqliteDialect::placeholder(1), "?");
+    assert_eq!(SqliteDialect::placeholder(3), "?");
+    assert_eq!(SqliteDialect::placeholder(999), "?");
+}
+
+#[test]
+fn test_postgres_placeholder_positional() {
+    assert_eq!(PostgresDialect::placeholder(1), "$1");
+    assert_eq!(PostgresDialect::placeholder(2), "$2");
+    assert_eq!(PostgresDialect::placeholder(10), "$10");
+}
+
+#[test]
+fn test_sqlite_quote_identifier() {
+    assert_eq!(SqliteDialect::quote_identifier("users"), "\"users\"");
+    assert_eq!(SqliteDialect::quote_identifier("id"), "\"id\"");
+}
+
+#[test]
+fn test_postgres_quote_identifier_lowercase() {
+    assert_eq!(PostgresDialect::quote_identifier("Users"), "\"users\"");
+    assert_eq!(PostgresDialect::quote_identifier("ID"), "\"id\"");
+}
+
+// =========================================================================
+// SQL injection prevention
+// =========================================================================
+#[test]
+fn test_filter_value_not_in_sql() {
+    let sql = User::query()
+        .filter("name", "=", "' OR 1=1 --")
+        .build_sql();
+
+    assert!(!sql.contains("OR 1=1"), "SQL should not contain injected value: {}", sql);
+    assert!(sql.contains('?'), "SQL should use placeholder: {}", sql);
+}
+
+#[test]
+fn test_filter_special_chars_are_parameterized() {
+    let sql = User::query()
+        .filter("name", "=", "it's a test")
+        .build_sql();
+
+    assert_eq!(sql, "SELECT * FROM users WHERE name = ?");
+}
+
+// =========================================================================
+// QueryBuilder — build_sql output
+// =========================================================================
+#[test]
+fn test_query_all_columns() {
+    let sql = User::query().build_sql();
+    assert_eq!(sql, "SELECT * FROM users");
+}
+
+#[test]
+fn test_query_select_columns() {
+    let sql = User::query()
+        .select(&["name", "age"])
+        .build_sql();
+    assert_eq!(sql, "SELECT name, age FROM users");
+}
+
+#[test]
+fn test_query_single_filter() {
+    let sql = User::query()
+        .filter("name", "=", "Alice")
+        .build_sql();
+    assert_eq!(sql, "SELECT * FROM users WHERE name = ?");
+}
+
+#[test]
+fn test_query_multiple_filters() {
+    let sql = User::query()
+        .filter("name", "=", "Alice")
+        .filter("age", ">", 18)
+        .build_sql();
+    assert_eq!(sql, "SELECT * FROM users WHERE name = ? AND age > ?");
+}
+
+#[test]
+fn test_query_order_by_asc() {
+    let sql = User::query()
+        .order_by("name", true)
+        .build_sql();
+    assert_eq!(sql, "SELECT * FROM users ORDER BY name ASC");
+}
+
+#[test]
+fn test_query_order_by_desc() {
+    let sql = User::query()
+        .order_by("age", false)
+        .build_sql();
+    assert_eq!(sql, "SELECT * FROM users ORDER BY age DESC");
+}
+
+#[test]
+fn test_query_limit() {
+    let sql = User::query()
+        .limit(10)
+        .build_sql();
+    assert_eq!(sql, "SELECT * FROM users LIMIT 10");
+}
+
+#[test]
+fn test_query_offset() {
+    let sql = User::query()
+        .limit(10)
+        .offset(20)
+        .build_sql();
+    assert_eq!(sql, "SELECT * FROM users LIMIT 10 OFFSET 20");
+}
+
+#[test]
+fn test_query_filter_order_limit() {
+    let sql = User::query()
+        .filter("age", ">=", 21)
+        .order_by("name", true)
+        .limit(5)
+        .build_sql();
+    assert_eq!(sql, "SELECT * FROM users WHERE age >= ? ORDER BY name ASC LIMIT 5");
+}
+
+// =========================================================================
+// BindArg ordering — must match placeholder order
+// =========================================================================
+#[test]
+fn test_query_values_match_filter_order() {
+    let qb = User::query()
+        .filter("name", "=", "Alice")
+        .filter("age", ">", 18);
+
+    let sql = qb.build_sql();
+    assert_eq!(sql, "SELECT * FROM users WHERE name = ? AND age > ?");
+    
+    // Verify values are in the same order as placeholders
+    assert_eq!(qb.values.len(), 2);
+    assert!(matches!(&qb.values[0], BindArg::Text(s) if s == "Alice"));
+    assert!(matches!(&qb.values[1], BindArg::I64(18)));
+}
+
+// =========================================================================
+// Joins
+// =========================================================================
+#[test]
+fn test_query_join_generates_left_join() {
+    let sql = User::query()
+        .join::<Post>()
+        .build_sql();
+    assert!(sql.contains("LEFT JOIN"));
+    assert!(sql.contains("posts"));
+    assert!(sql.contains("users.id = posts.user_id"));
+}
+
+#[test]
+fn test_query_with_filter_and_join() {
+    let sql = User::query()
+        .join::<Post>()
+        .filter("users.name", "=", "Alice")
+        .build_sql();
+    assert!(sql.contains("LEFT JOIN posts ON "));
+    assert!(sql.contains("WHERE"));
+    assert!(sql.contains("?"));
+}
+
+// =========================================================================
+// Eager loading — build_sql from EagerQueryBuilder
+// =========================================================================
+#[test]
+fn test_eager_query_build_sql() {
+    let sql = User::query()
+        .filter("age", ">", 18)
+        .build_sql();
+    assert_eq!(sql, "SELECT * FROM users WHERE age > ?");
+}
+
+#[test]
+fn test_eager_query_with_filters() {
+    let sql = User::query()
+        .filter("name", "=", "Alice")
+        .order_by("name", true)
+        .limit(5)
+        .build_sql();
+    assert_eq!(sql, "SELECT * FROM users WHERE name = ? ORDER BY name ASC LIMIT 5");
+}
+
+// =========================================================================
+// has_many macro — generated method names
+// =========================================================================
+#[test]
+fn test_has_many_generates_methods() {
+    use magic_orm::relations::traits::RelationList;
+    let rels = <UserRelations as RelationList>::all();
+    assert!(rels.contains(&"Post"));
+    assert!(rels.contains(&"Reaction"));
+}
+
+#[test]
+fn test_has_relations_trait() {
+    use magic_orm::relations::traits::HasRelations;
+    type Relations = <User as HasRelations>::HasMany;
+    let rels = <Relations as RelationList>::all();
+    assert_eq!(rels.len(), 2);
+}
