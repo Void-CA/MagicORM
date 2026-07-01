@@ -301,3 +301,63 @@ fn test_has_relations_trait() {
     let rels = <Relations as RelationList>::all();
     assert_eq!(rels.len(), 2);
 }
+
+// =========================================================================
+// Describe trait
+// =========================================================================
+#[test]
+fn test_describe_trait_implemented() {
+    use magic_orm::describe::Describe;
+    let desc = <User as Describe>::descriptor();
+    assert_eq!(desc.table, "users");
+    assert_eq!(desc.columns.len(), 3);
+    assert_eq!(desc.foreign_keys.len(), 0);
+}
+
+#[test]
+fn test_describe_columns() {
+    use magic_orm::describe::Describe;
+    let desc = <User as Describe>::descriptor();
+    let id_col = &desc.columns[0];
+    assert_eq!(id_col.name, "id");
+    assert!(id_col.primary_key);
+    assert!(id_col.auto_increment);
+    assert!(!id_col.nullable);
+
+    let name_col = &desc.columns[1];
+    assert_eq!(name_col.name, "name");
+    assert!(!name_col.primary_key);
+    assert!(!name_col.auto_increment);
+    assert!(!name_col.nullable); // String is not Option
+}
+
+#[test]
+fn test_describe_foreign_keys() {
+    use magic_orm::describe::Describe;
+    let desc = <Post as Describe>::descriptor();
+    assert_eq!(desc.foreign_keys.len(), 1);
+    let fk = &desc.foreign_keys[0];
+    assert_eq!(fk.field, "user_id");
+    assert_eq!(fk.related_table, "users");
+    assert_eq!(fk.related_column, "id");
+}
+
+#[test]
+fn test_describe_all_descriptors() {
+    let descs = all_descriptors();
+    assert_eq!(descs.len(), 3); // User, Post, Reaction
+    let tables: Vec<&str> = descs.iter().map(|d| d.table).collect();
+    assert!(tables.contains(&"users"));
+    assert!(tables.contains(&"posts"));
+    assert!(tables.contains(&"reactions"));
+}
+
+#[test]
+fn test_describe_to_json() {
+    use magic_orm::describe::descriptor_to_json;
+    let desc = <User as magic_orm::describe::Describe>::descriptor();
+    let json = descriptor_to_json(&desc).unwrap();
+    assert!(json.contains("\"table\": \"users\""));
+    assert!(json.contains("\"name\": \"id\""));
+    assert!(json.contains("\"auto_increment\": true"));
+}

@@ -10,6 +10,7 @@ pub struct ColumnMeta {
     pub sql_type: &'static str,
     pub nullable: bool,
     pub primary_key: bool,
+    pub auto_increment: bool,
 }
 
 // ---------------------------------------------------------------------------

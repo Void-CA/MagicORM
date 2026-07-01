@@ -5,6 +5,7 @@ pub use crate::model::BelongsTo;
 pub use crate::model::ModelMeta;
 pub use crate::model::ModelDescriptor;
 pub use crate::model::RegisteredModels;
+pub use crate::describe::Describe;
 pub use crate::relations::traits::HasFK;
 
 // Macros

@@ -1,6 +1,6 @@
 use crate::input::attrs::FKConfig;
 use crate::input::ModelInfo;
-use crate::codegen::utils::{map_rust_to_sqlite, is_option, write_model_json, ColumnJsonMeta, ForeignKeyJsonMeta};
+use crate::codegen::utils::{map_rust_to_sqlite, is_option};
 use quote::quote;
 
 pub fn generate_model_meta_impl(
@@ -9,7 +9,6 @@ pub fn generate_model_meta_impl(
     model: &ModelInfo,
     table_name: &str,
 ) -> proc_macro2::TokenStream {
-    // metadata tokens
     let columns_meta_tokens = std::iter::once(&model.id_field)
         .chain(model.other_fields.iter())
         .map(|f| {
@@ -17,12 +16,14 @@ pub fn generate_model_meta_impl(
             let sql_type = map_rust_to_sqlite(&f.ty);
             let nullable = is_option(&f.ty);
             let is_pk = f.ident == model.id_field.ident;
+            let auto_inc = is_pk; // PK columns are auto-increment by default
             quote! {
                 ::magic_orm::model::ColumnMeta {
                     name: #name,
                     sql_type: #sql_type,
                     nullable: #nullable,
                     primary_key: #is_pk,
+                    auto_increment: #auto_inc,
                 }
             }
         });
@@ -40,28 +41,6 @@ pub fn generate_model_meta_impl(
             }
         }
     });
-
-    // JSON metadata
-    let columns_json: Vec<ColumnJsonMeta> = std::iter::once(&model.id_field)
-        .chain(model.other_fields.iter())
-        .map(|f| ColumnJsonMeta {
-            name: f.ident.to_string(),
-            sql_type: map_rust_to_sqlite(&f.ty).to_owned(),
-            nullable: is_option(&f.ty),
-            primary_key: f.ident == model.id_field.ident,
-        })
-        .collect();
-
-    let fk_json: Vec<ForeignKeyJsonMeta> = fk_fields
-        .iter()
-        .map(|fk| ForeignKeyJsonMeta {
-            field: fk.field_ident.to_string(),
-            related_table: fk.model.to_string(),
-            related_column: fk.column.clone(),
-        })
-        .collect();
-
-    write_model_json(table_name, columns_json, fk_json);
 
     quote! {
         impl ::magic_orm::model::ModelMeta for #struct_name {

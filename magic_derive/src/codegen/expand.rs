@@ -51,6 +51,7 @@ pub fn expand_magic_model(
     let model_impl = generate_model_impl(struct_name, &model);
     let hasfk_impl = generate_hasfk_impl(fk_fields, struct_name);
     let belongs_to_impls = generate_belongs_to_impls(fk_fields, struct_name);
+    let describe_impl = generate_describe_impl(struct_name);
     quote! {
         #vis struct #new_struct_name {
             #( #new_fields, )*
@@ -78,5 +79,6 @@ pub fn expand_magic_model(
 
         #model_meta_impl
         #hasfk_impl
+        #describe_impl
     }
 }
