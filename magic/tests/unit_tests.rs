@@ -35,10 +35,17 @@ pub struct Reaction {
     pub user_id: i64,
 }
 
+// Modelo sin #[magic(table)] — infiere: PostCategory → post_categories
+#[derive(MagicModel, Debug)]
+pub struct PostCategory {
+    pub id: i64,
+    pub name: String,
+}
+
 has_many!(User => Post, Reaction);
 has_many!(Post => Reaction);
 
-register_models!(User, Post, Reaction);
+register_models!(User, Post, Reaction, PostCategory);
 
 // =========================================================================
 // BindArg
@@ -345,11 +352,19 @@ fn test_describe_foreign_keys() {
 #[test]
 fn test_describe_all_descriptors() {
     let descs = all_descriptors();
-    assert_eq!(descs.len(), 3); // User, Post, Reaction
+    assert_eq!(descs.len(), 4); // User, Post, Reaction, PostCategory
     let tables: Vec<&str> = descs.iter().map(|d| d.table.as_str()).collect();
     assert!(tables.contains(&"users"));
     assert!(tables.contains(&"posts"));
     assert!(tables.contains(&"reactions"));
+    assert!(tables.contains(&"post_categories")); // inferred from struct name
+}
+
+#[test]
+fn test_table_name_inferred() {
+    // PostCategory sin #[magic(table)] → debe inferir "post_categories"
+    let desc = <PostCategory as magic_orm::describe::Describe>::descriptor();
+    assert_eq!(desc.table, "post_categories");
 }
 
 #[test]
