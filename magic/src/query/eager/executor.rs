@@ -12,6 +12,9 @@ macro_rules! impl_eager_executor {
             P::Id: Clone + Eq + std::hash::Hash,
             C: Model<DB = $db> + ModelMeta + HasFK<P> + Send + Unpin,
         {
+            /// Ejecuta eager loading.
+            /// Nota: requiere executor Copy (&pool, no &mut tx).
+            /// Para usar dentro de una transacción, pasa los datos manualmente.
             pub async fn fetch_all(self, executor: impl Executor<'_, Database = $db> + Copy) -> anyhow::Result<WithMany<P, C>> {
                 let parents = self.inner.fetch_all(executor).await?;
 

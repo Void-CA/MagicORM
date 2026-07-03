@@ -48,7 +48,7 @@ has_many!(Post => Reaction);
 register_models!(User, Post, Reaction, Document);
 
 async fn setup_pool() -> SqlitePool {
-    let mut pool = SqlitePool::connect("sqlite::memory:").await.unwrap();
+    let pool = SqlitePool::connect("sqlite::memory:").await.unwrap();
     sqlx::query("PRAGMA foreign_keys = ON;")
         .execute(&pool)
         .await
@@ -172,4 +172,130 @@ async fn test_uuid_crud() {
         .unwrap();
     assert_eq!(docs.len(), 1);
     assert_eq!(docs[0].title, "UUID Document");
+}
+
+// =========================================================================
+// Transacciones
+// =========================================================================
+
+#[tokio::test]
+async fn test_transaction_insert_and_commit() {
+    let pool = setup_pool().await;
+    let mut tx = pool.begin().await.unwrap();
+
+    let uid = User::insert(&mut *tx, &NewUser {
+        name: "TxUser".to_string(), edad: 25, email: "tx@x.com".to_string(),
+    }).await.unwrap();
+
+    let pid = Post::insert(&mut *tx, &NewPost {
+        title: "TxPost".to_string(), content: "C".to_string(), user_id: uid,
+    }).await.unwrap();
+
+    tx.commit().await.unwrap();
+
+    // Verificar fuera de la transacción
+    let user = User::get_by_id(&pool, uid).await.unwrap().unwrap();
+    assert_eq!(user.name, "TxUser");
+
+    let post = Post::get_by_id(&pool, pid).await.unwrap().unwrap();
+    assert_eq!(post.user_id, uid);
+}
+
+#[tokio::test]
+async fn test_transaction_rollback() {
+    let pool = setup_pool().await;
+    let mut tx = pool.begin().await.unwrap();
+
+    let uid = User::insert(&mut *tx, &NewUser {
+        name: "RollbackUser".to_string(), edad: 99, email: "rb@x.com".to_string(),
+    }).await.unwrap();
+
+    tx.rollback().await.unwrap();
+
+    // No debería existir fuera de la transacción
+    let user = User::get_by_id(&pool, uid).await.unwrap();
+    assert!(user.is_none());
+}
+
+#[tokio::test]
+async fn test_transaction_has_many_relation() {
+    let pool = setup_pool().await;
+    let mut tx = pool.begin().await.unwrap();
+
+    let uid = User::insert(&mut *tx, &NewUser {
+        name: "RelTx".to_string(), edad: 30, email: "reltx@x.com".to_string(),
+    }).await.unwrap();
+
+    Post::insert(&mut *tx, &NewPost {
+        title: "P1".to_string(), content: "C1".to_string(), user_id: uid,
+    }).await.unwrap();
+    Post::insert(&mut *tx, &NewPost {
+        title: "P2".to_string(), content: "C2".to_string(), user_id: uid,
+    }).await.unwrap();
+
+    // Cargar relación dentro de la misma transacción
+    let user = User::get_by_id(&mut *tx, uid).await.unwrap().unwrap();
+    let posts = user.posts(&mut *tx).await.unwrap();
+    assert_eq!(posts.len(), 2);
+
+    tx.commit().await.unwrap();
+}
+
+#[tokio::test]
+async fn test_transaction_query_builder() {
+    let pool = setup_pool().await;
+    let mut tx = pool.begin().await.unwrap();
+
+    let uid = User::insert(&mut *tx, &NewUser {
+        name: "QBTx".to_string(), edad: 40, email: "qbtx@x.com".to_string(),
+    }).await.unwrap();
+
+    // QueryBuilder dentro de la transacción
+    let users = User::query()
+        .filter("name", "=", "QBTx")
+        .fetch_all(&mut *tx)
+        .await
+        .unwrap();
+    assert_eq!(users.len(), 1);
+    assert_eq!(users[0].id, uid);
+
+    // filter_in
+    let users = User::query()
+        .filter_in("id", [uid])
+        .fetch_all(&mut *tx)
+        .await
+        .unwrap();
+    assert_eq!(users.len(), 1);
+
+    tx.commit().await.unwrap();
+}
+
+#[tokio::test]
+async fn test_transaction_update_and_delete() {
+    let pool = setup_pool().await;
+    let mut tx = pool.begin().await.unwrap();
+
+    let uid = User::insert(&mut *tx, &NewUser {
+        name: "UpdDel".to_string(), edad: 50, email: "ud@x.com".to_string(),
+    }).await.unwrap();
+
+    // Update dentro de la transacción
+    User::put(&mut *tx, uid, &NewUser {
+        name: "Updated".to_string(), edad: 51, email: "ud2@x.com".to_string(),
+    }).await.unwrap();
+
+    let user = User::get_by_id(&mut *tx, uid).await.unwrap().unwrap();
+    assert_eq!(user.name, "Updated");
+
+    // Delete dentro de la transacción
+    User::delete_by_id(&mut *tx, uid).await.unwrap();
+
+    let user = User::get_by_id(&mut *tx, uid).await.unwrap();
+    assert!(user.is_none());
+
+    tx.rollback().await.unwrap();
+
+    // Después del rollback, el user original debería existir
+    let user = User::get_by_id(&pool, uid).await.unwrap().unwrap();
+    assert_eq!(user.name, "UpdDel");
 }
