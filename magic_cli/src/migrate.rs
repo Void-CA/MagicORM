@@ -1,7 +1,12 @@
 use anyhow::{Context, Result};
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
+
+use magic_orm::model::{ColumnMeta, ForeignKeyMeta, ModelDescriptor};
+use magic_orm::dialect::{HasDialect, SqlDialect, SqliteDialect, PostgresDialect};
+use magic_orm::schema::migration::{diff, render_migration, MigrationStep};
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -77,11 +82,125 @@ pub fn new(name: &str) -> Result<()> {
     Ok(())
 }
 
-/// Genera una migración desde diff de modelos (stub — requiere setup adicional).
-pub async fn generate(_name: &str) -> Result<()> {
-    println!("❌ migrate generate requiere conectar el pipeline de descriptors.");
-    println!("   Por ahora usa `magic migrate new <name>` y escribe el SQL manualmente.");
-    println!("   Próximamente: all_descriptors() + describe_database() + diff + render.");
+// ---------------------------------------------------------------------------
+// Generate — pipeline de migración automática
+// ---------------------------------------------------------------------------
+
+const STATE_FILE: &str = "magicorm_state.json";
+
+/// Obtiene los descriptors ejecutando un comando externo.
+/// Por defecto: `cargo run --bin magic-describe 2>/dev/null`
+fn fetch_descriptors() -> Result<Vec<ModelDescriptor>> {
+    let bin_name = std::env::var("MAGIC_DESCRIBE_BIN")
+        .unwrap_or_else(|_| "cargo run --bin magic-describe 2>/dev/null".to_string());
+
+    // Parsear: si es "cargo run ...", lo ejecutamos como shell
+    let output = if bin_name.starts_with("cargo") {
+        let parts: Vec<&str> = bin_name.split_whitespace().collect();
+        if parts.len() < 2 {
+            anyhow::bail!("MAGIC_DESCRIBE_BIN inválido: {}", bin_name);
+        }
+        let args = &parts[1..];
+        // Filtrar redirect 2>/dev/null
+        let args: Vec<&str> = args.iter().filter(|a| !a.starts_with("2>")).copied().collect();
+        Command::new("cargo")
+            .args(&args)
+            .output()
+            .with_context(|| format!("Error ejecutando: cargo {}", args.join(" ")))?
+    } else {
+        Command::new(&bin_name)
+            .output()
+            .with_context(|| format!("Error ejecutando: {}", bin_name))?
+    };
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        anyhow::bail!(
+            "El comando '{}' falló.\n\
+             Asegúrate de tener un binario 'magic-describe' en tu proyecto que \
+             imprima all_descriptors() como JSON a stdout.\n\
+             stderr: {}",
+            bin_name, stderr
+        );
+    }
+
+    let stdout = String::from_utf8(output.stdout)?;
+    let descriptors: Vec<ModelDescriptor> = serde_json::from_str(&stdout)?;
+    Ok(descriptors)
+}
+
+/// Carga el último estado guardado.
+fn load_last_state() -> Result<Vec<ModelDescriptor>> {
+    if !Path::new(STATE_FILE).exists() {
+        return Ok(vec![]);
+    }
+    let data = fs::read_to_string(STATE_FILE)?;
+    let state: Vec<ModelDescriptor> = serde_json::from_str(&data)?;
+    Ok(state)
+}
+
+/// Guarda el estado actual como el último conocido.
+fn save_last_state(descriptors: &[ModelDescriptor]) -> Result<()> {
+    let data = serde_json::to_string_pretty(descriptors)?;
+    fs::write(STATE_FILE, data)?;
+    Ok(())
+}
+
+/// Genera una migración desde diff de modelos.
+pub async fn generate(name: &str) -> Result<()> {
+    println!("🔍 Obteniendo descriptors desde el proyecto...");
+
+    let desired = match fetch_descriptors() {
+        Ok(d) => d,
+        Err(e) => {
+            eprintln!("❌ {:#}", e);
+            eprintln!("   Crea un binario 'magic-describe' en tu proyecto:");
+            eprintln!("   Crea un binario 'magic-describe' en tu proyecto:");
+            eprintln!("   ```");
+            eprintln!("   fn main() {{");
+            eprintln!("       let descs = all_descriptors();");
+            eprintln!("       println!(\"{{}}\", serde_json::to_string(&descs).unwrap());");
+            eprintln!("   }}");
+            eprintln!("   ```");
+            eprintln!("   Luego ejecuta: cargo run --bin magic-describe | magic migrate generate <name>");
+            eprintln!("   O configúralo vía MAGIC_DESCRIBE_BIN");
+            return Ok(());
+        }
+    };
+    println!("✓ {} modelos encontrados.", desired.len());
+
+    let last = load_last_state()?;
+    println!("✓ Último estado: {} modelos.", last.len());
+
+    let steps = diff(&desired, &last);
+    if steps.is_empty() {
+        println!("✓ No hay cambios desde el último estado guardado.");
+        return Ok(());
+    }
+    println!("⚡ {} cambios detectados.", steps.len());
+
+    // Generar SQL con SQLite dialect (por defecto)
+    let sql = render_migration::<SqliteDialect>(&steps);
+
+    // Escribir archivo de migración
+    let dir = migrations_dir();
+    fs::create_dir_all(&dir)?;
+
+    let ts = timestamp_now();
+    let filename = format!("{}_{}.sql", ts, name);
+    let path = dir.join(&filename);
+
+    let template = format!(
+        "-- UP\n{}\n\n\n-- DOWN\n-- TODO: escribir rollback\n",
+        sql
+    );
+    fs::write(&path, template)?;
+    println!("✓ Creada: {}", path.display());
+
+    // Guardar nuevo estado
+    save_last_state(&desired)?;
+    println!("✓ Estado actualizado: {}", STATE_FILE);
+
     Ok(())
 }
 

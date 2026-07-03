@@ -1,10 +1,10 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 // ---------------------------------------------------------------------------
 // ColumnMeta — descriptor de una columna
 // ---------------------------------------------------------------------------
 
-#[derive(Serialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct ColumnMeta {
     pub name: String,
     pub sql_type: String,
@@ -17,7 +17,7 @@ pub struct ColumnMeta {
 // ForeignKeyMeta — descriptor de una clave foránea
 // ---------------------------------------------------------------------------
 
-#[derive(Debug, Serialize, Clone, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct ForeignKeyMeta {
     pub field: String,
     pub related_column: String,

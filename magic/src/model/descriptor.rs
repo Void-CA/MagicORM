@@ -1,4 +1,4 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use crate::model::meta::{ColumnMeta, ForeignKeyMeta};
 
 // ---------------------------------------------------------------------------
@@ -6,7 +6,7 @@ use crate::model::meta::{ColumnMeta, ForeignKeyMeta};
 // Usa tipos owned (String, Vec) para ser construible en runtime.
 // ---------------------------------------------------------------------------
 
-#[derive(Serialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct ModelDescriptor {
     pub table: String,
     pub columns: Vec<ColumnMeta>,
@@ -17,7 +17,7 @@ pub struct ModelDescriptor {
 // SchemaDescriptor — describe todos los modelos del proyecto.
 // ---------------------------------------------------------------------------
 
-#[derive(Serialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct SchemaDescriptor {
     pub models: Vec<ModelDescriptor>,
 }
