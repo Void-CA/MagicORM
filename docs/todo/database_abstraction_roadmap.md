@@ -98,32 +98,41 @@ Ensure basic read patterns are coherent.
 
 ---
 
-### P3 — Schema evolution (NEXT)
+### P3 — Schema evolution ✅ IN PROGRESS
 
-Architecture review before implementation.
+#### P3.1 — Capability audit ✅
+Review what MagicORM is now and what's missing.
 
-#### P3.1 — Capability audit
-Review what MagicORM is now and what's missing:
-- Schema evolution (migrations, diff engine)
-- Database abstraction (PostgreSQL parity)
-- ORM ergonomics (relations, joins, eager/lazy)
-- Production hardening (error model, observability)
+**Done:**
+- Schema evolution (migrations, diff engine) ✅
+- Database abstraction (PostgreSQL parity) ✅ — `cargo check --features postgres` passes
+- ORM ergonomics (relations, joins, eager/lazy) ✅
+- Production hardening — partially (tracing, error model TBD)
 
-#### P3.2 — Schema model
-Define schema representation:
+#### P3.2 — Schema model ✅
 ```text
 ModelDescriptor
 ├── columns
 ├── foreign_keys
 └── indexes
 ```
-→ Schema representation → Database introspection → Diff → Migration
+→ Schema representation → Database introspection → Diff → Migration ✅
 
-#### P3.3 — Migration diff engine
+#### P3.3 — Migration diff engine ✅
 Detect schema changes and generate migrations.
+- `diff()` produces MigrationSteps
+- `render_step::<D>()` renders SQL per dialect
+- DropForeignKey: SQLite table rebuild, Postgres DROP CONSTRAINT
 
-#### P3.4 — Migration apply/rollback
-Apply and rollback migrations with versioning.
+#### P3.4 — Migration apply/rollback ✅
+- `magic migrate up/down/status/new/generate`
+- Rollback: reverse diff computed automatically
+- `_migrations` tracking table
+
+#### P3.5 — Remaining
+- Structured error types (currently `anyhow`)
+- Performance regression test suite
+- Concurrency documentation
 
 ---
 
@@ -169,11 +178,11 @@ Key decisions:
 
 ---
 
-## Pre-existing Issues (tracked separately)
+## Resolved Issues
 
-| Test | Failure | Introduced |
-|------|---------|------------|
-| `test_transaction_rollback` | User exists after rollback | Pre-P0 |
-| `test_transaction_update_and_delete` | User name mismatch after rollback | Pre-P0 |
-
-These are not blocking P1 work but must be investigated and resolved independently.
+| Test | Root Cause | Fix |
+|------|-----------|-----|
+| `test_transaction_rollback` | Shared in-memory DB (`file::memory:?cache=shared`) across parallel tests | Isolated per-test DB with unique URI |
+| `test_transaction_update_and_delete` | Insert inside tx + wrong assertion (rollback undoes insert) | Insert outside tx, correct rollback semantics |
+| Postgres compilation | `#[cfg]` branches compiled both sqlite+postgres when both features enabled | cfg priority: postgres wins, identical blocks deduplicated |
+| DropForeignKey | Emitted TODO comment instead of real SQL | SQLite table rebuild, Postgres DROP CONSTRAINT |
