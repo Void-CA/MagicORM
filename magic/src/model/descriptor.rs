@@ -1,5 +1,5 @@
+use crate::model::meta::{ColumnMeta, ForeignKeyMeta, IndexMeta};
 use serde::{Deserialize, Serialize};
-use crate::model::meta::{ColumnMeta, ForeignKeyMeta};
 
 // ---------------------------------------------------------------------------
 // ModelDescriptor — snapshot serializable de un modelo.
@@ -11,6 +11,8 @@ pub struct ModelDescriptor {
     pub table: String,
     pub columns: Vec<ColumnMeta>,
     pub foreign_keys: Vec<ForeignKeyMeta>,
+    #[serde(default)]
+    pub indexes: Vec<IndexMeta>,
 }
 
 // ---------------------------------------------------------------------------

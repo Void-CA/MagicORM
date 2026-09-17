@@ -25,6 +25,17 @@ pub struct ForeignKeyMeta {
 }
 
 // ---------------------------------------------------------------------------
+// IndexMeta — descriptor de un índice
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct IndexMeta {
+    pub name: String,
+    pub columns: Vec<String>,
+    pub unique: bool,
+}
+
+// ---------------------------------------------------------------------------
 // ModelMeta — trait base de metadatos de tiempo de compilación
 // Implementado automáticamente por `#[derive(MagicModel)]`.
 // Retorna Vec para que ColumnMeta sea completamente owned.
@@ -34,4 +45,7 @@ pub trait ModelMeta {
     const TABLE: &'static str;
     fn foreign_keys() -> Vec<ForeignKeyMeta>;
     fn columns() -> Vec<ColumnMeta>;
+    fn indexes() -> Vec<IndexMeta> {
+        Vec::new()
+    }
 }

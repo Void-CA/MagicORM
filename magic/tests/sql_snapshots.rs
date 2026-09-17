@@ -111,20 +111,12 @@ fn test_select_columns_with_filter() {
 #[test]
 fn test_sql_injection_placeholder() {
     // The value should NOT appear in the SQL, only a placeholder
-    insta::assert_snapshot!(
-        User::query()
-            .filter("name", "=", "' OR 1=1 --")
-            .build_sql()
-    );
+    insta::assert_snapshot!(User::query().filter("name", "=", "' OR 1=1 --").build_sql());
 }
 
 #[test]
 fn test_filter_in_snapshot() {
-    insta::assert_snapshot!(
-        User::query()
-            .filter_in("id", [1i64, 2, 3])
-            .build_sql()
-    );
+    insta::assert_snapshot!(User::query().filter_in("id", [1i64, 2, 3]).build_sql());
 }
 
 #[test]
@@ -139,17 +131,10 @@ fn test_or_filter_snapshot() {
 
 #[test]
 fn test_count_filter_snapshot() {
-    insta::assert_snapshot!(
-        User::query()
-            .count()
-            .filter("age", ">", 18)
-            .build_sql()
-    );
+    insta::assert_snapshot!(User::query().count().filter("age", ">", 18).build_sql());
 }
 
 #[test]
 fn test_count_no_filter_snapshot() {
-    insta::assert_snapshot!(
-        User::query().count().build_sql()
-    );
+    insta::assert_snapshot!(User::query().count().build_sql());
 }

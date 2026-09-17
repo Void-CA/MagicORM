@@ -1,7 +1,7 @@
 // Submódulos internos — los detalles de implementación permanecen ocultos
-mod meta;
 mod core;
 mod descriptor;
+mod meta;
 mod registry; // contiene la macro register_models!
 
 // ---------------------------------------------------------------------------
@@ -9,8 +9,8 @@ mod registry; // contiene la macro register_models!
 // Los consumidores del crate solo necesitan importar desde `model::*`
 // ---------------------------------------------------------------------------
 
-pub use meta::{ColumnMeta, ForeignKeyMeta, ModelMeta};
-pub use core::{Model, HasMany, BelongsTo};
-pub use descriptor::{ModelDescriptor, SchemaDescriptor, RegisteredModels};
+pub use core::{BelongsTo, HasMany, Model};
+pub use descriptor::{ModelDescriptor, RegisteredModels, SchemaDescriptor};
+pub use meta::{ColumnMeta, ForeignKeyMeta, IndexMeta, ModelMeta};
 #[allow(unused_imports)]
 pub use registry::*; // re-exporta la macro register_models!

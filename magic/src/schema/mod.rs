@@ -1,6 +1,6 @@
 pub mod create;
-pub mod utils;
 pub mod migration;
+pub mod utils;
 
 #[cfg(feature = "sqlite")]
 pub mod introspect;

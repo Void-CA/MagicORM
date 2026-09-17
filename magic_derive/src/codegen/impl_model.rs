@@ -1,7 +1,10 @@
 use crate::input::ModelInfo;
 use quote::quote;
 
-pub fn generate_model_impl(struct_name: &syn::Ident, model: &ModelInfo) -> proc_macro2::TokenStream {
+pub fn generate_model_impl(
+    struct_name: &syn::Ident,
+    model: &ModelInfo,
+) -> proc_macro2::TokenStream {
     let id_type = &model.id_field.ty;
 
     quote! {
@@ -12,12 +15,12 @@ pub fn generate_model_impl(struct_name: &syn::Ident, model: &ModelInfo) -> proc_
             fn id_column() -> &'static str {
                 "id"
             }
-            
+
             fn query<'a>() -> ::magic_orm::query::QueryBuilder<'a, Self::DB, Self> {
                 ::magic_orm::query::QueryBuilder::new(Self::TABLE)
             }
 
             fn id(&self) -> &Self::Id { &self.id }
-        }   
+        }
     }
 }

@@ -17,7 +17,7 @@ pub fn generate_hasfk_impl(
                 }
 
                 fn fk_value(&self) -> <#parent as magic_orm::model::Model>::Id {
-                    self.#field_ident
+                    self.#field_ident.clone()
                 }
             }
         }

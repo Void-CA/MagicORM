@@ -1,7 +1,7 @@
-use magic_orm::{prelude::*, register_models};
+use magic_orm::dialect::{PostgresDialect, SqlDialect, SqliteDialect};
 use magic_orm::query::statement::BindArg;
-use magic_orm::dialect::{SqlDialect, SqliteDialect, PostgresDialect};
 use magic_orm::relations::traits::RelationList;
+use magic_orm::{prelude::*, register_models};
 
 // ---------------------------------------------------------------------------
 // Test model — minimal para pruebas sin DB
@@ -124,9 +124,7 @@ fn test_bind_arg_from_ref_uuid() {
 #[test]
 fn test_bind_arg_uuid_with_filter() {
     let id = uuid::Uuid::new_v4();
-    let sql = Document::query()
-        .filter("id", "=", id)
-        .build_sql();
+    let sql = Document::query().filter("id", "=", id).build_sql();
     assert_eq!(sql, "SELECT * FROM documents WHERE id = ?");
 }
 
@@ -164,19 +162,19 @@ fn test_postgres_quote_identifier_lowercase() {
 // =========================================================================
 #[test]
 fn test_filter_value_not_in_sql() {
-    let sql = User::query()
-        .filter("name", "=", "' OR 1=1 --")
-        .build_sql();
+    let sql = User::query().filter("name", "=", "' OR 1=1 --").build_sql();
 
-    assert!(!sql.contains("OR 1=1"), "SQL should not contain injected value: {}", sql);
+    assert!(
+        !sql.contains("OR 1=1"),
+        "SQL should not contain injected value: {}",
+        sql
+    );
     assert!(sql.contains('?'), "SQL should use placeholder: {}", sql);
 }
 
 #[test]
 fn test_filter_special_chars_are_parameterized() {
-    let sql = User::query()
-        .filter("name", "=", "it's a test")
-        .build_sql();
+    let sql = User::query().filter("name", "=", "it's a test").build_sql();
 
     assert_eq!(sql, "SELECT * FROM users WHERE name = ?");
 }
@@ -192,17 +190,13 @@ fn test_query_all_columns() {
 
 #[test]
 fn test_query_select_columns() {
-    let sql = User::query()
-        .select(&["name", "age"])
-        .build_sql();
+    let sql = User::query().select(&["name", "age"]).build_sql();
     assert_eq!(sql, "SELECT name, age FROM users");
 }
 
 #[test]
 fn test_query_single_filter() {
-    let sql = User::query()
-        .filter("name", "=", "Alice")
-        .build_sql();
+    let sql = User::query().filter("name", "=", "Alice").build_sql();
     assert_eq!(sql, "SELECT * FROM users WHERE name = ?");
 }
 
@@ -217,34 +211,25 @@ fn test_query_multiple_filters() {
 
 #[test]
 fn test_query_order_by_asc() {
-    let sql = User::query()
-        .order_by("name", true)
-        .build_sql();
+    let sql = User::query().order_by("name", true).build_sql();
     assert_eq!(sql, "SELECT * FROM users ORDER BY name ASC");
 }
 
 #[test]
 fn test_query_order_by_desc() {
-    let sql = User::query()
-        .order_by("age", false)
-        .build_sql();
+    let sql = User::query().order_by("age", false).build_sql();
     assert_eq!(sql, "SELECT * FROM users ORDER BY age DESC");
 }
 
 #[test]
 fn test_query_limit() {
-    let sql = User::query()
-        .limit(10)
-        .build_sql();
+    let sql = User::query().limit(10).build_sql();
     assert_eq!(sql, "SELECT * FROM users LIMIT 10");
 }
 
 #[test]
 fn test_query_offset() {
-    let sql = User::query()
-        .limit(10)
-        .offset(20)
-        .build_sql();
+    let sql = User::query().limit(10).offset(20).build_sql();
     assert_eq!(sql, "SELECT * FROM users LIMIT 10 OFFSET 20");
 }
 
@@ -255,7 +240,10 @@ fn test_query_filter_order_limit() {
         .order_by("name", true)
         .limit(5)
         .build_sql();
-    assert_eq!(sql, "SELECT * FROM users WHERE age >= ? ORDER BY name ASC LIMIT 5");
+    assert_eq!(
+        sql,
+        "SELECT * FROM users WHERE age >= ? ORDER BY name ASC LIMIT 5"
+    );
 }
 
 // =========================================================================
@@ -269,7 +257,7 @@ fn test_query_values_match_filter_order() {
 
     let sql = qb.build_sql();
     assert_eq!(sql, "SELECT * FROM users WHERE name = ? AND age > ?");
-    
+
     // Verify values are in the same order as placeholders
     assert_eq!(qb.values.len(), 2);
     assert!(matches!(&qb.values[0], BindArg::Text(s) if s == "Alice"));
@@ -281,9 +269,7 @@ fn test_query_values_match_filter_order() {
 // =========================================================================
 #[test]
 fn test_query_join_generates_left_join() {
-    let sql = User::query()
-        .join::<Post>()
-        .build_sql();
+    let sql = User::query().join::<Post>().build_sql();
     assert!(sql.contains("LEFT JOIN"));
     assert!(sql.contains("posts"));
     assert!(sql.contains("users.id = posts.user_id"));
@@ -305,9 +291,7 @@ fn test_query_with_filter_and_join() {
 // =========================================================================
 #[test]
 fn test_eager_query_build_sql() {
-    let sql = User::query()
-        .filter("age", ">", 18)
-        .build_sql();
+    let sql = User::query().filter("age", ">", 18).build_sql();
     assert_eq!(sql, "SELECT * FROM users WHERE age > ?");
 }
 
@@ -318,7 +302,10 @@ fn test_eager_query_with_filters() {
         .order_by("name", true)
         .limit(5)
         .build_sql();
-    assert_eq!(sql, "SELECT * FROM users WHERE name = ? ORDER BY name ASC LIMIT 5");
+    assert_eq!(
+        sql,
+        "SELECT * FROM users WHERE name = ? ORDER BY name ASC LIMIT 5"
+    );
 }
 
 // =========================================================================
@@ -421,8 +408,7 @@ fn test_filter_in() {
 
 #[test]
 fn test_filter_in_values_order() {
-    let qb = User::query()
-        .filter_in("id", [10i64, 20i64]);
+    let qb = User::query().filter_in("id", [10i64, 20i64]);
     assert_eq!(qb.values.len(), 2);
     assert!(matches!(&qb.values[0], BindArg::I64(10)));
     assert!(matches!(&qb.values[1], BindArg::I64(20)));
@@ -444,15 +430,15 @@ fn test_and_or_combo() {
         .or_filter("name", "=", "Admin")
         .filter("active", "=", true)
         .build_sql();
-    assert_eq!(sql, "SELECT * FROM users WHERE age > ? OR name = ? AND active = ?");
+    assert_eq!(
+        sql,
+        "SELECT * FROM users WHERE age > ? OR name = ? AND active = ?"
+    );
 }
 
 #[test]
 fn test_count() {
-    let sql = User::query()
-        .count()
-        .filter("age", ">", 18)
-        .build_sql();
+    let sql = User::query().count().filter("age", ">", 18).build_sql();
     assert_eq!(sql, "SELECT count(*) FROM users WHERE age > ?");
 }
 
@@ -480,9 +466,7 @@ fn test_filter_in_strings() {
 
 #[test]
 fn test_filter_in_single() {
-    let sql = User::query()
-        .filter_in("id", [42i64])
-        .build_sql();
+    let sql = User::query().filter_in("id", [42i64]).build_sql();
     assert_eq!(sql, "SELECT * FROM users WHERE id IN (?)");
 }
 
@@ -506,7 +490,10 @@ fn test_and_or_filter_precedence() {
         .or_filter("name", "=", "Admin")
         .or_filter("role", "=", "moderator")
         .build_sql();
-    assert_eq!(sql, "SELECT * FROM users WHERE active = ? OR name = ? OR role = ?");
+    assert_eq!(
+        sql,
+        "SELECT * FROM users WHERE active = ? OR name = ? OR role = ?"
+    );
 }
 
 #[test]
@@ -517,7 +504,10 @@ fn test_filter_in_with_or() {
         .filter_in("id", [1i64, 2i64])
         .or_filter("name", "=", "Admin")
         .build_sql();
-    assert_eq!(sql, "SELECT * FROM users WHERE active = ? AND id IN (?, ?) OR name = ?");
+    assert_eq!(
+        sql,
+        "SELECT * FROM users WHERE active = ? AND id IN (?, ?) OR name = ?"
+    );
 }
 
 #[test]
@@ -528,7 +518,10 @@ fn test_values_order_matches_placeholders() {
         .or_filter("age", ">", 18);
 
     let sql = qb.build_sql();
-    assert_eq!(sql, "SELECT * FROM users WHERE name = ? AND id IN (?, ?, ?) OR age > ?");
+    assert_eq!(
+        sql,
+        "SELECT * FROM users WHERE name = ? AND id IN (?, ?, ?) OR age > ?"
+    );
     assert_eq!(qb.values.len(), 5);
     assert!(matches!(&qb.values[0], BindArg::Text(s) if s == "Alice"));
     assert!(matches!(&qb.values[1], BindArg::I64(1)));
@@ -545,4 +538,427 @@ fn test_describe_uuid_model() {
     assert_eq!(desc.columns[0].sql_type, "TEXT");
     assert!(desc.columns[0].primary_key);
     assert!(desc.columns[0].auto_increment); // PK auto-infers auto_increment
+}
+
+// =========================================================================
+// QueryBuilder — P1.5 new features
+// =========================================================================
+
+#[test]
+fn test_exists_mode() {
+    let sql = User::query()
+        .exists()
+        .filter("name", "=", "Alice")
+        .build_sql();
+    assert_eq!(sql, "SELECT 1 FROM users WHERE name = ? LIMIT 1");
+}
+
+#[test]
+fn test_exists_no_filters() {
+    let sql = User::query().exists().build_sql();
+    assert_eq!(sql, "SELECT 1 FROM users LIMIT 1");
+}
+
+#[test]
+fn test_filter_null() {
+    let sql = User::query().filter_null("email").build_sql();
+    assert_eq!(sql, "SELECT * FROM users WHERE email IS NULL");
+}
+
+#[test]
+fn test_filter_not_null() {
+    let sql = User::query().filter_not_null("email").build_sql();
+    assert_eq!(sql, "SELECT * FROM users WHERE email IS NOT NULL");
+}
+
+#[test]
+fn test_filter_null_with_other_filters() {
+    let sql = User::query()
+        .filter("name", "=", "Alice")
+        .filter_null("email")
+        .build_sql();
+    assert_eq!(sql, "SELECT * FROM users WHERE name = ? AND email IS NULL");
+}
+
+#[test]
+fn test_multiple_order_by() {
+    let sql = User::query()
+        .order_by("name", true)
+        .order_by("age", false)
+        .build_sql();
+    assert_eq!(sql, "SELECT * FROM users ORDER BY name ASC, age DESC");
+}
+
+#[test]
+fn test_multiple_order_by_with_filter() {
+    let sql = User::query()
+        .filter("active", "=", true)
+        .order_by("name", true)
+        .order_by("age", false)
+        .build_sql();
+    assert_eq!(
+        sql,
+        "SELECT * FROM users WHERE active = ? ORDER BY name ASC, age DESC"
+    );
+}
+
+#[test]
+fn test_thalos_q1_lookup_by_id() {
+    let sql = User::query().filter("id", "=", 1i64).build_sql();
+    assert_eq!(sql, "SELECT * FROM users WHERE id = ?");
+}
+
+#[test]
+fn test_thalos_q2_ordered_query() {
+    let sql = Post::query()
+        .filter("user_id", "=", 1i64)
+        .order_by("id", true)
+        .build_sql();
+    assert_eq!(sql, "SELECT * FROM posts WHERE user_id = ? ORDER BY id ASC");
+}
+
+#[test]
+fn test_thalos_q3_time_window() {
+    let sql = Post::query()
+        .filter("user_id", "=", 1i64)
+        .filter("title", ">=", "2026-01-01")
+        .filter("title", "<", "2026-12-31")
+        .order_by("title", true)
+        .build_sql();
+    assert_eq!(
+        sql,
+        "SELECT * FROM posts WHERE user_id = ? AND title >= ? AND title < ? ORDER BY title ASC"
+    );
+}
+
+#[test]
+fn test_thalos_q4_paginated() {
+    let sql = Post::query()
+        .filter("user_id", "=", 1i64)
+        .order_by("id", false)
+        .limit(1000)
+        .offset(2000)
+        .build_sql();
+    assert_eq!(
+        sql,
+        "SELECT * FROM posts WHERE user_id = ? ORDER BY id DESC LIMIT 1000 OFFSET 2000"
+    );
+}
+
+#[test]
+fn test_thalos_q5_count() {
+    let sql = Post::query()
+        .filter("user_id", "=", 1i64)
+        .count()
+        .build_sql();
+    assert_eq!(sql, "SELECT count(*) FROM posts WHERE user_id = ?");
+}
+
+#[test]
+fn test_thalos_q6_exists() {
+    let sql = User::query()
+        .filter("name", "=", "Alice")
+        .exists()
+        .build_sql();
+    assert_eq!(sql, "SELECT 1 FROM users WHERE name = ? LIMIT 1");
+}
+
+#[test]
+fn test_thalos_q7_latest() {
+    let sql = Post::query()
+        .filter("user_id", "=", 1i64)
+        .order_by("id", false)
+        .limit(1)
+        .build_sql();
+    assert_eq!(
+        sql,
+        "SELECT * FROM posts WHERE user_id = ? ORDER BY id DESC LIMIT 1"
+    );
+}
+
+#[test]
+fn test_thalos_q8_filter_in() {
+    let sql = Post::query()
+        .filter_in("title", ["Post 1", "Post 2", "Post 3"])
+        .build_sql();
+    assert_eq!(sql, "SELECT * FROM posts WHERE title IN (?, ?, ?)");
+}
+
+#[test]
+fn test_thalos_q9_or_filter() {
+    let sql = User::query()
+        .or_filter("name", "=", "Alice")
+        .or_filter("name", "=", "Bob")
+        .build_sql();
+    assert_eq!(sql, "SELECT * FROM users WHERE name = ? OR name = ?");
+}
+
+#[test]
+fn test_thalos_q10_multi_column_order() {
+    let sql = Post::query()
+        .filter("user_id", "=", 1i64)
+        .order_by("title", false)
+        .order_by("id", false)
+        .build_sql();
+    assert_eq!(
+        sql,
+        "SELECT * FROM posts WHERE user_id = ? ORDER BY title DESC, id DESC"
+    );
+}
+
+#[test]
+fn test_thalos_q11_select_columns() {
+    let sql = Post::query()
+        .select(&["title", "content"])
+        .filter("user_id", "=", 1i64)
+        .build_sql();
+    assert_eq!(sql, "SELECT title, content FROM posts WHERE user_id = ?");
+}
+
+#[test]
+fn test_thalos_q12_join() {
+    // User is the base, Post has FK to User, so we join Post into User's query
+    let sql = User::query()
+        .join::<Post>()
+        .filter("users.id", "=", 1i64)
+        .build_sql();
+    assert!(sql.contains("LEFT JOIN"));
+    assert!(sql.contains("WHERE"));
+}
+
+// =========================================================================
+// QueryBuilder — P2.1 index metadata
+// =========================================================================
+
+#[derive(MagicModel, Debug)]
+#[magic(table = "observations_with_index")]
+#[magic(index(
+    name = "idx_obs_session_time",
+    columns = ["session_id", "timestamp"]
+))]
+pub struct ObservationWithIndex {
+    pub id: i64,
+    pub session_id: i64,
+    pub timestamp: String,
+}
+
+#[test]
+fn test_index_metadata() {
+    let indexes = <ObservationWithIndex as magic_orm::model::ModelMeta>::indexes();
+    assert_eq!(indexes.len(), 1);
+    assert_eq!(indexes[0].name, "idx_obs_session_time");
+    assert_eq!(indexes[0].columns, vec!["session_id", "timestamp"]);
+    assert!(!indexes[0].unique);
+}
+
+#[test]
+fn test_create_index_sql() {
+    let sql = magic_orm::schema::create::create_index_sql(
+        "observations_with_index",
+        &magic_orm::model::IndexMeta {
+            name: "idx_obs_session_time".to_string(),
+            columns: vec!["session_id".to_string(), "timestamp".to_string()],
+            unique: false,
+        },
+    );
+    assert_eq!(
+        sql,
+        "CREATE INDEX IF NOT EXISTS idx_obs_session_time ON observations_with_index (session_id, timestamp)"
+    );
+}
+
+#[test]
+fn test_create_unique_index_sql() {
+    let sql = magic_orm::schema::create::create_index_sql(
+        "users",
+        &magic_orm::model::IndexMeta {
+            name: "idx_users_email".to_string(),
+            columns: vec!["email".to_string()],
+            unique: true,
+        },
+    );
+    assert_eq!(
+        sql,
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users (email)"
+    );
+}
+
+#[test]
+fn test_model_descriptor_includes_indexes() {
+    let desc = <ObservationWithIndex as magic_orm::describe::Describe>::descriptor();
+    assert_eq!(desc.indexes.len(), 1);
+    assert_eq!(desc.indexes[0].name, "idx_obs_session_time");
+}
+
+// =========================================================================
+// QueryBuilder — P2.2 keyset pagination
+// =========================================================================
+
+use magic_orm::query::Cursor;
+
+#[test]
+fn test_keyset_asc_single_column() {
+    let sql = User::query()
+        .order_by("age", true)
+        .limit(100)
+        .after(Cursor::new(vec![BindArg::I64(25)]))
+        .build_sql();
+    assert_eq!(
+        sql,
+        "SELECT * FROM users WHERE (age) > (?) ORDER BY age ASC LIMIT 100"
+    );
+}
+
+#[test]
+fn test_keyset_desc_single_column() {
+    let sql = User::query()
+        .order_by("age", false)
+        .limit(100)
+        .after(Cursor::new(vec![BindArg::I64(25)]))
+        .build_sql();
+    assert_eq!(
+        sql,
+        "SELECT * FROM users WHERE (age) < (?) ORDER BY age DESC LIMIT 100"
+    );
+}
+
+#[test]
+fn test_keyset_multi_column() {
+    let sql = User::query()
+        .order_by("age", true)
+        .order_by("name", true)
+        .limit(100)
+        .after(Cursor::new(vec![
+            BindArg::I64(25),
+            BindArg::Text("Alice".into()),
+        ]))
+        .build_sql();
+    assert_eq!(
+        sql,
+        "SELECT * FROM users WHERE (age, name) > (?, ?) ORDER BY age ASC, name ASC LIMIT 100"
+    );
+}
+
+#[test]
+fn test_keyset_with_filter() {
+    let sql = User::query()
+        .filter("active", "=", true)
+        .order_by("age", true)
+        .limit(100)
+        .after(Cursor::new(vec![BindArg::I64(25)]))
+        .build_sql();
+    assert_eq!(
+        sql,
+        "SELECT * FROM users WHERE active = ? AND (age) > (?) ORDER BY age ASC LIMIT 100"
+    );
+}
+
+#[test]
+fn test_keyset_empty_cursor() {
+    // Empty cursor should not add WHERE clause
+    let sql = User::query()
+        .order_by("age", true)
+        .limit(100)
+        .after(Cursor::new(vec![]))
+        .build_sql();
+    assert_eq!(sql, "SELECT * FROM users ORDER BY age ASC LIMIT 100");
+}
+
+#[test]
+fn test_keyset_values_match() {
+    let cursor = Cursor::new(vec![BindArg::I64(25), BindArg::Text("Alice".into())]);
+    let qb = User::query()
+        .order_by("age", true)
+        .order_by("name", true)
+        .limit(10)
+        .after(cursor);
+
+    assert_eq!(qb.values.len(), 2);
+    assert!(matches!(&qb.values[0], BindArg::I64(25)));
+    assert!(matches!(&qb.values[1], BindArg::Text(s) if s == "Alice"));
+}
+
+// =========================================================================
+// P2.2 — Keyset correctness tests
+// =========================================================================
+
+#[test]
+fn test_keyset_preserves_filter_and_or_logic() {
+    let sql = User::query()
+        .filter("active", "=", true)
+        .or_filter("role", "=", "admin")
+        .order_by("age", true)
+        .after(Cursor::new(vec![BindArg::I64(25)]))
+        .limit(100)
+        .build_sql();
+    assert!(sql.contains("active = ? OR role = ?"));
+    assert!(sql.contains("AND (age) > (?)"));
+}
+
+#[test]
+fn test_keyset_no_order_by_no_cursor() {
+    let sql = User::query()
+        .after(Cursor::new(vec![BindArg::I64(25)]))
+        .build_sql();
+    assert_eq!(sql, "SELECT * FROM users");
+}
+
+#[test]
+fn test_keyset_with_count() {
+    let sql = User::query()
+        .count()
+        .order_by("age", true)
+        .after(Cursor::new(vec![BindArg::I64(25)]))
+        .build_sql();
+    assert_eq!(
+        sql,
+        "SELECT count(*) FROM users WHERE (age) > (?) ORDER BY age ASC"
+    );
+}
+
+#[test]
+fn test_keyset_with_exists() {
+    let sql = User::query()
+        .exists()
+        .order_by("age", true)
+        .after(Cursor::new(vec![BindArg::I64(25)]))
+        .build_sql();
+    assert_eq!(
+        sql,
+        "SELECT 1 FROM users WHERE (age) > (?) ORDER BY age ASC LIMIT 1"
+    );
+}
+
+#[test]
+fn test_keyset_placeholder_indexing() {
+    let sql = User::query()
+        .filter("name", "=", "Alice")
+        .filter("active", "=", true)
+        .order_by("age", true)
+        .order_by("name", true)
+        .after(Cursor::new(vec![
+            BindArg::I64(25),
+            BindArg::Text("Bob".into()),
+        ]))
+        .limit(10)
+        .build_sql();
+    assert_eq!(
+        sql,
+        "SELECT * FROM users WHERE name = ? AND active = ? AND (age, name) > (?, ?) ORDER BY age ASC, name ASC LIMIT 10"
+    );
+    assert_eq!(
+        User::query()
+            .filter("name", "=", "Alice")
+            .filter("active", "=", true)
+            .order_by("age", true)
+            .order_by("name", true)
+            .after(Cursor::new(vec![
+                BindArg::I64(25),
+                BindArg::Text("Bob".into())
+            ]))
+            .limit(10)
+            .values
+            .len(),
+        4 // name + active + cursor(age) + cursor(name)
+    );
 }

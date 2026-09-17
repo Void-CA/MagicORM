@@ -13,9 +13,37 @@ impl SqlDialect for SqliteDialect {
     }
 
     fn insert_returning(table: &str, cols: &[&str], _pk: &str) -> String {
-        let cols_joined = cols.iter().map(|c| format!("\"{}\"", c)).collect::<Vec<_>>().join(", ");
+        let cols_joined = cols
+            .iter()
+            .map(|c| format!("\"{}\"", c))
+            .collect::<Vec<_>>()
+            .join(", ");
         let placeholders = vec!["?"; cols.len()].join(", ");
-        format!("INSERT INTO \"{}\" ({}) VALUES ({})", table, cols_joined, placeholders)
+        format!(
+            "INSERT INTO \"{}\" ({}) VALUES ({})",
+            table, cols_joined, placeholders
+        )
+    }
+
+    fn upsert_returning(table: &str, cols: &[&str], pk: &str) -> String {
+        let cols_joined = cols
+            .iter()
+            .map(|c| format!("\"{}\"", c))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let placeholders = vec!["?"; cols.len()].join(", ");
+        let set_clause: Vec<String> = cols
+            .iter()
+            .map(|c| format!("\"{}\" = excluded.\"{}\"", c, c))
+            .collect();
+        format!(
+            "INSERT INTO \"{}\" ({}) VALUES ({}) ON CONFLICT(\"{}\") DO UPDATE SET {}",
+            table,
+            cols_joined,
+            placeholders,
+            pk,
+            set_clause.join(", "),
+        )
     }
 
     fn last_insert_id_expr() -> Option<&'static str> {

@@ -1,20 +1,32 @@
 use crate::input::ModelInfo;
 use crate::operations::crud::{
-    generate_delete, generate_delete_by_id, generate_get, generate_get_by_id, generate_insert, generate_newstruct_insert, generate_newstruct_put, generate_put
+    generate_delete, generate_delete_by_id, generate_get, generate_get_by_id, generate_insert,
+    generate_insert_many, generate_newstruct_insert, generate_newstruct_put,
+    generate_newstruct_upsert, generate_put, generate_upsert, generate_upsert_many,
 };
 
-use quote::{quote, format_ident};
+use quote::quote;
 
-pub fn generate_crud_methods(struct_name: &syn::Ident, model: &ModelInfo, table_name: &str) -> proc_macro2::TokenStream {
+pub fn generate_crud_methods(
+    struct_name: &syn::Ident,
+    model: &ModelInfo,
+    table_name: &str,
+) -> proc_macro2::TokenStream {
     let insert_method = generate_insert(struct_name, model, table_name);
+    let insert_many_method = generate_insert_many(struct_name, model, table_name);
+    let upsert_method = generate_upsert(struct_name, model, table_name);
+    let upsert_many_method = generate_upsert_many(struct_name, model, table_name);
     let update_method = generate_put(struct_name, model, table_name);
     let select_method = generate_get(struct_name, model, table_name);
     let select_by_id_method = generate_get_by_id(struct_name, model, table_name);
     let delete_method = generate_delete(table_name);
     let delete_by_id_method = generate_delete_by_id(struct_name, model, table_name);
-    
+
     quote! {
         #insert_method
+        #insert_many_method
+        #upsert_method
+        #upsert_many_method
         #update_method
         #select_method
         #select_by_id_method
@@ -22,13 +34,18 @@ pub fn generate_crud_methods(struct_name: &syn::Ident, model: &ModelInfo, table_
         #delete_by_id_method
     }
 }
-    
-pub fn generate_newstruct_methods(struct_name: &syn::Ident, model: &ModelInfo) -> proc_macro2::TokenStream {
+
+pub fn generate_newstruct_methods(
+    struct_name: &syn::Ident,
+    model: &ModelInfo,
+) -> proc_macro2::TokenStream {
     let newstruct_insert = generate_newstruct_insert(struct_name);
+    let newstruct_upsert = generate_newstruct_upsert(struct_name);
     let newstruct_put = generate_newstruct_put(struct_name, model);
 
     quote! {
         #newstruct_insert
+        #newstruct_upsert
         #newstruct_put
     }
 }

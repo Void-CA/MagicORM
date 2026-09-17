@@ -7,6 +7,7 @@ pub fn generate_registry_method(struct_name: &syn::Ident) -> proc_macro2::TokenS
                 table: Self::TABLE.to_string(),
                 columns: Self::columns(),
                 foreign_keys: Self::foreign_keys(),
+                indexes: Self::indexes(),
             }
         }
     }

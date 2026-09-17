@@ -1,7 +1,10 @@
 use crate::input::parser::ModelInfo;
 use quote::quote;
 
-pub fn generate_from_row_impl(struct_name: &syn::Ident, model: &ModelInfo) -> proc_macro2::TokenStream {
+pub fn generate_from_row_impl(
+    struct_name: &syn::Ident,
+    model: &ModelInfo,
+) -> proc_macro2::TokenStream {
     let id_ident = &model.id_field.ident;
     let id_name = id_ident.to_string();
 

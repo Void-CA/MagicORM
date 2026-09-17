@@ -1,4 +1,4 @@
-use syn::{DeriveInput, Data, Fields, Ident, Type, Attribute};
+use syn::{Attribute, Data, DeriveInput, Fields, Ident, Type};
 
 /// Información de un campo individual del struct.
 pub struct FieldInfo {
@@ -22,7 +22,10 @@ impl ModelInfo {
     }
 
     pub fn no_id_column_names(&self) -> Vec<String> {
-        self.other_fields.iter().map(|f| f.ident.to_string()).collect()
+        self.other_fields
+            .iter()
+            .map(|f| f.ident.to_string())
+            .collect()
     }
 }
 
@@ -35,7 +38,7 @@ pub fn analyze_model(input: &DeriveInput) -> syn::Result<ModelInfo> {
             return Err(syn::Error::new_spanned(
                 &input.ident,
                 "MagicModel can only be derived for structs",
-            ))
+            ));
         }
     };
 
@@ -45,7 +48,7 @@ pub fn analyze_model(input: &DeriveInput) -> syn::Result<ModelInfo> {
             return Err(syn::Error::new_spanned(
                 &input.ident,
                 "MagicModel requires named fields",
-            ))
+            ));
         }
     };
 
@@ -57,7 +60,11 @@ pub fn analyze_model(input: &DeriveInput) -> syn::Result<ModelInfo> {
         let ty = field.ty.clone();
         let attrs = field.attrs.clone();
 
-        let info = FieldInfo { ident: ident.clone(), ty, attrs };
+        let info = FieldInfo {
+            ident: ident.clone(),
+            ty,
+            attrs,
+        };
 
         if ident == "id" {
             id_field = Some(info);
@@ -70,5 +77,8 @@ pub fn analyze_model(input: &DeriveInput) -> syn::Result<ModelInfo> {
         syn::Error::new_spanned(&input.ident, "MagicModel requires a field named `id`")
     })?;
 
-    Ok(ModelInfo { id_field, other_fields })
+    Ok(ModelInfo {
+        id_field,
+        other_fields,
+    })
 }

@@ -27,7 +27,11 @@ where
 
     match result {
         Ok(rows) => {
-            debug!(count = rows.len(), elapsed_us = elapsed.as_micros() as u64, "load_has_many done");
+            debug!(
+                count = rows.len(),
+                elapsed_us = elapsed.as_micros() as u64,
+                "load_has_many done"
+            );
             Ok(rows)
         }
         Err(e) => {

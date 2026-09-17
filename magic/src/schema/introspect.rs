@@ -42,7 +42,10 @@ where
     Ok(rows.into_iter().map(|r| r.0).collect())
 }
 
-pub(crate) async fn table_columns<'e, E>(executor: E, table: &str) -> anyhow::Result<Vec<ColumnMeta>>
+pub(crate) async fn table_columns<'e, E>(
+    executor: E,
+    table: &str,
+) -> anyhow::Result<Vec<ColumnMeta>>
 where
     E: Executor<'e, Database = sqlx::Sqlite> + Copy,
 {
@@ -66,7 +69,10 @@ where
         .collect())
 }
 
-pub(crate) async fn table_foreign_keys<'e, E>(executor: E, table: &str) -> anyhow::Result<Vec<ForeignKeyMeta>>
+pub(crate) async fn table_foreign_keys<'e, E>(
+    executor: E,
+    table: &str,
+) -> anyhow::Result<Vec<ForeignKeyMeta>>
 where
     E: Executor<'e, Database = sqlx::Sqlite> + Copy,
 {
@@ -103,6 +109,7 @@ where
             table: table.clone(),
             columns,
             foreign_keys,
+            indexes: vec![],
         });
     }
 
@@ -112,12 +119,10 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use sqlx::SqlitePool;
+    use crate::sqlite::{Sqlite, SqliteConfig};
 
-    async fn setup_db() -> SqlitePool {
-        let pool = SqlitePool::connect("sqlite::memory:").await.unwrap();
-        sqlx::query("PRAGMA foreign_keys = ON;")
-            .execute(&pool)
+    async fn setup_db() -> sqlx::SqlitePool {
+        let pool = crate::sqlite::Sqlite::pool_with_config(":memory:", SqliteConfig::in_memory())
             .await
             .unwrap();
 

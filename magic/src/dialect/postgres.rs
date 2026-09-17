@@ -12,12 +12,39 @@ impl SqlDialect for PostgresDialect {
     }
 
     fn insert_returning(table: &str, cols: &[&str], pk: &str) -> String {
-        let cols_joined = cols.iter().map(|c| format!("\"{}\"", c)).collect::<Vec<_>>().join(", ");
+        let cols_joined = cols
+            .iter()
+            .map(|c| format!("\"{}\"", c))
+            .collect::<Vec<_>>()
+            .join(", ");
         let placeholders: Vec<String> = (1..=cols.len()).map(|i| format!("${}", i)).collect();
         let placeholders = placeholders.join(", ");
         format!(
             "INSERT INTO \"{}\" ({}) VALUES ({}) RETURNING \"{}\"",
             table, cols_joined, placeholders, pk
+        )
+    }
+
+    fn upsert_returning(table: &str, cols: &[&str], pk: &str) -> String {
+        let cols_joined = cols
+            .iter()
+            .map(|c| format!("\"{}\"", c))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let placeholders: Vec<String> = (1..=cols.len()).map(|i| format!("${}", i)).collect();
+        let placeholders = placeholders.join(", ");
+        let set_clause: Vec<String> = cols
+            .iter()
+            .map(|c| format!("\"{}\" = excluded.\"{}\"", c, c))
+            .collect();
+        format!(
+            "INSERT INTO \"{}\" ({}) VALUES ({}) ON CONFLICT(\"{}\") DO UPDATE SET {} RETURNING \"{}\"",
+            table,
+            cols_joined,
+            placeholders,
+            pk,
+            set_clause.join(", "),
+            pk,
         )
     }
 

@@ -42,28 +42,32 @@ register_models!(User, Post, Reaction);
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let pool = SqlitePool::connect("sqlite://test.db").await?;
-    sqlx::query("PRAGMA foreign_keys = ON;")
-        .execute(&pool)
-        .await?;
+    let pool = Sqlite::pool("test.db").await?;
 
     create_all::<_, AppModels>(&pool).await?;
 
     let new_user = User::new("Alicia".into(), 25, "alicia@example.com".into());
 
-    let insert_id = User::insert(& pool, &new_user).await?;
+    let insert_id = User::insert(&pool, &new_user).await?;
 
-    let post_1 = Post::new("Primer post".into(), "Contenido del primer post".into(), insert_id);
-    let post_2 = Post::new("Segundo post".into(), "Contenido del segundo post".into(), insert_id);
-    Post::insert(& pool, &post_1).await?;
-    Post::insert(& pool, &post_2).await?;
-
+    let post_1 = Post::new(
+        "Primer post".into(),
+        "Contenido del primer post".into(),
+        insert_id,
+    );
+    let post_2 = Post::new(
+        "Segundo post".into(),
+        "Contenido del segundo post".into(),
+        insert_id,
+    );
+    Post::insert(&pool, &post_1).await?;
+    Post::insert(&pool, &post_2).await?;
 
     let alicia = User::get_by_id(&pool, insert_id).await?.unwrap();
     let mut tx = pool.begin().await?;
     let posts = alicia.posts(&mut *tx).await?;
     tx.commit().await?;
-    
+
     let x = User::query().with_many::<Post>().fetch_all(&pool).await?;
     println!("{:#?}", x);
     Ok(())

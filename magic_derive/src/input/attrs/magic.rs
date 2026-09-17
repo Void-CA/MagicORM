@@ -1,17 +1,26 @@
-use syn::{Attribute, DeriveInput, LitStr};
+use syn::{Attribute, DeriveInput, LitStr, Token, punctuated::Punctuated};
 
 pub struct MagicConfig {
     pub table: String,
+    pub indexes: Vec<IndexConfig>,
+}
+
+pub struct IndexConfig {
+    pub name: String,
+    pub columns: Vec<String>,
+    pub unique: bool,
 }
 
 pub fn parse_magic_attributes(input: &DeriveInput) -> syn::Result<MagicConfig> {
     // Si hay #[magic(...)], parsearlo. Si no, inferir.
-    match extract_magic_attribute(input) {
-        Ok(attr) => parse_magic_attr(attr),
-        Err(_) => Ok(MagicConfig {
-            table: infer_table_name(&input.ident.to_string()),
-        }),
-    }
+    let table = match extract_magic_attribute(input) {
+        Ok(attr) => parse_magic_attr(attr)?,
+        Err(_) => infer_table_name(&input.ident.to_string()),
+    };
+
+    let indexes = parse_index_attributes(input)?;
+
+    Ok(MagicConfig { table, indexes })
 }
 
 fn extract_magic_attribute(input: &DeriveInput) -> syn::Result<&Attribute> {
@@ -40,7 +49,7 @@ fn extract_magic_attribute(input: &DeriveInput) -> syn::Result<&Attribute> {
     })
 }
 
-fn parse_magic_attr(attr: &Attribute) -> syn::Result<MagicConfig> {
+fn parse_magic_attr(attr: &Attribute) -> syn::Result<String> {
     let mut table_name: Option<String> = None;
 
     attr.parse_nested_meta(|meta| {
@@ -58,19 +67,17 @@ fn parse_magic_attr(attr: &Attribute) -> syn::Result<MagicConfig> {
         Ok(())
     })?;
 
-    let table = match table_name {
-        Some(t) => t,
+    match table_name {
+        Some(t) => Ok(t),
         // Sintaxis bare: #[magic("users")]
         None => {
             // Intentar leer el primer argumento como string literal
-            return Err(syn::Error::new_spanned(
+            Err(syn::Error::new_spanned(
                 attr,
                 "Missing `table` argument. Use #[magic(table = \"...\")] or omit #[magic] entirely",
-            ));
+            ))
         }
-    };
-
-    Ok(MagicConfig { table })
+    }
 }
 
 /// Infiere el nombre de tabla desde el nombre del struct.
@@ -104,7 +111,8 @@ fn pluralize(word: &str) -> String {
         || word.ends_with('z')
     {
         format!("{}es", word)
-    } else if word.ends_with('y') && word.len() > 2
+    } else if word.ends_with('y')
+        && word.len() > 2
         && !"aeiou".contains(word.chars().nth(word.len() - 2).unwrap())
     {
         // consonant + y → ies
@@ -115,6 +123,74 @@ fn pluralize(word: &str) -> String {
     } else {
         format!("{}s", word)
     }
+}
+
+fn parse_index_attributes(input: &DeriveInput) -> syn::Result<Vec<IndexConfig>> {
+    let mut indexes = Vec::new();
+
+    for attr in &input.attrs {
+        if !attr.path().is_ident("magic") {
+            continue;
+        }
+
+        // Parse #[magic(index(name = "...", columns = ["...", "..."]))]
+        // Use a simpler approach: parse the token stream directly
+        let tokens = attr.parse_args_with(Punctuated::<syn::Meta, Token![,]>::parse_terminated)?;
+
+        for meta in tokens {
+            if let syn::Meta::List(meta_list) = meta {
+                if meta_list.path.is_ident("index") {
+                    let mut name = None;
+                    let mut columns = None;
+                    let mut unique = false;
+
+                    // Parse the nested metas inside index(...)
+                    let nested: Punctuated<syn::Meta, Token![,]> =
+                        meta_list.parse_args_with(Punctuated::parse_terminated)?;
+
+                    for nested_meta in nested {
+                        if let syn::Meta::NameValue(nv) = nested_meta {
+                            if nv.path.is_ident("name") {
+                                if let syn::Expr::Lit(expr_lit) = nv.value {
+                                    if let syn::Lit::Str(lit_str) = expr_lit.lit {
+                                        name = Some(lit_str.value());
+                                    }
+                                }
+                            } else if nv.path.is_ident("columns") {
+                                if let syn::Expr::Array(arr) = nv.value {
+                                    let mut cols = Vec::new();
+                                    for elem in arr.elems {
+                                        if let syn::Expr::Lit(expr_lit) = elem {
+                                            if let syn::Lit::Str(lit_str) = expr_lit.lit {
+                                                cols.push(lit_str.value());
+                                            }
+                                        }
+                                    }
+                                    columns = Some(cols);
+                                }
+                            } else if nv.path.is_ident("unique") {
+                                if let syn::Expr::Lit(expr_lit) = nv.value {
+                                    if let syn::Lit::Bool(lit_bool) = expr_lit.lit {
+                                        unique = lit_bool.value;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if let (Some(name), Some(columns)) = (name, columns) {
+                        indexes.push(IndexConfig {
+                            name,
+                            columns,
+                            unique,
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(indexes)
 }
 
 #[cfg(test)]

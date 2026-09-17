@@ -1,9 +1,9 @@
-pub mod sqlite;
-pub mod postgres;
 pub mod mysql;
+pub mod postgres;
+pub mod sqlite;
 
-pub use sqlite::SqliteDialect;
 pub use postgres::PostgresDialect;
+pub use sqlite::SqliteDialect;
 
 // ---------------------------------------------------------------------------
 // SqlDialect — abstrae las diferencias de sintaxis entre backends SQL.
@@ -20,6 +20,12 @@ pub trait SqlDialect: Send + Sync + 'static {
     /// Para SQLite: "INSERT INTO t (c1, c2) VALUES (?, ?)"
     /// Para Postgres: "INSERT INTO t (c1, c2) VALUES ($1, $2) RETURNING id"
     fn insert_returning(table: &str, cols: &[&str], pk: &str) -> String;
+
+    /// Genera la sentencia UPSERT (INSERT ... ON CONFLICT DO UPDATE).
+    /// Conflicto siempre en la PK; actualiza todas las columnas no-PK.
+    /// Para SQLite: "INSERT INTO t (c1,c2) VALUES (?,?) ON CONFLICT("id") DO UPDATE SET "c1"=excluded."c1", "c2"=excluded."c2""
+    /// Para Postgres: misma sentencia + RETURNING "id"
+    fn upsert_returning(table: &str, cols: &[&str], pk: &str) -> String;
 
     /// Expresión para obtener el último ID insertado.
     /// Some("last_insert_rowid()") para SQLite, None para Postgres (usa RETURNING).

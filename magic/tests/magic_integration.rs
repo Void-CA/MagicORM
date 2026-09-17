@@ -48,9 +48,9 @@ has_many!(Post => Reaction);
 register_models!(User, Post, Reaction, Document);
 
 async fn setup_pool() -> SqlitePool {
-    let pool = SqlitePool::connect("sqlite::memory:").await.unwrap();
-    sqlx::query("PRAGMA foreign_keys = ON;")
-        .execute(&pool)
+    let uid = uuid::Uuid::new_v4();
+    let uri = format!("file:{}?mode=memory&cache=shared", uid);
+    let pool = Sqlite::pool_with_config(&uri, SqliteConfig::in_memory())
         .await
         .unwrap();
 
@@ -64,23 +64,38 @@ async fn test_transaction_success() {
 
     let mut tx = pool.begin().await.unwrap();
 
-    let user_id = User::insert(&mut *tx, &NewUser {
-        name: "Test".to_string(),
-        edad: 20,
-        email: "test@example.com".to_string(),
-    }).await.unwrap();
+    let user_id = User::insert(
+        &mut *tx,
+        &NewUser {
+            name: "Test".to_string(),
+            edad: 20,
+            email: "test@example.com".to_string(),
+        },
+    )
+    .await
+    .unwrap();
 
-    let post_id = Post::insert(&mut *tx, &NewPost {
-        title: "Post".to_string(),
-        content: "Content".to_string(),
-        user_id,
-    }).await.unwrap();
+    let post_id = Post::insert(
+        &mut *tx,
+        &NewPost {
+            title: "Post".to_string(),
+            content: "Content".to_string(),
+            user_id,
+        },
+    )
+    .await
+    .unwrap();
 
-    let reaction_id = Reaction::insert(&mut *tx, &NewReaction {
-        reaction_type: "like".to_string(),
-        post_id,
-        user_id,
-    }).await.unwrap();
+    let reaction_id = Reaction::insert(
+        &mut *tx,
+        &NewReaction {
+            reaction_type: "like".to_string(),
+            post_id,
+            user_id,
+        },
+    )
+    .await
+    .unwrap();
 
     tx.commit().await.unwrap();
 
@@ -95,11 +110,15 @@ async fn test_transaction_failure() {
     let mut tx = pool.begin().await.unwrap();
 
     // Intentamos insertar un post con user_id inexistente
-    let result = Post::insert(&mut *tx, &NewPost {
-        title: "Fail Post".to_string(),
-        content: "No user".to_string(),
-        user_id: 999, // No existe
-    }).await;
+    let result = Post::insert(
+        &mut *tx,
+        &NewPost {
+            title: "Fail Post".to_string(),
+            content: "No user".to_string(),
+            user_id: 999, // No existe
+        },
+    )
+    .await;
 
     assert!(result.is_err());
 
@@ -111,11 +130,16 @@ async fn test_transaction_failure() {
 async fn test_delete_operations() {
     let pool = setup_pool().await;
 
-    let user_id = User::insert(&pool, &NewUser {
-        name: "ToDelete".to_string(),
-        edad: 22,
-        email: "del@example.com".to_string(),
-    }).await.unwrap();
+    let user_id = User::insert(
+        &pool,
+        &NewUser {
+            name: "ToDelete".to_string(),
+            edad: 22,
+            email: "del@example.com".to_string(),
+        },
+    )
+    .await
+    .unwrap();
 
     let deleted = User::delete_by_id(&pool, user_id).await.unwrap();
     assert_eq!(deleted, 1);
@@ -126,20 +150,30 @@ async fn test_has_many_relationship() {
     let pool = setup_pool().await;
 
     // Crear un usuario
-    let user_id = User::insert(&pool, &NewUser {
-        name: "RelTest".to_string(),
-        edad: 30,
-        email: "reltest@example.com".to_string(),
-    }).await.unwrap();
+    let user_id = User::insert(
+        &pool,
+        &NewUser {
+            name: "RelTest".to_string(),
+            edad: 30,
+            email: "reltest@example.com".to_string(),
+        },
+    )
+    .await
+    .unwrap();
 
     let user = User::get_by_id(&pool, user_id).await.unwrap().unwrap();
 
     // Crear un post asociado
-    let post_id = Post::insert(&pool, &NewPost {
-        title: "RelPost".to_string(),
-        content: "Content".to_string(),
-        user_id,
-    }).await.unwrap();
+    let post_id = Post::insert(
+        &pool,
+        &NewPost {
+            title: "RelPost".to_string(),
+            content: "Content".to_string(),
+            user_id,
+        },
+    )
+    .await
+    .unwrap();
 
     // Cargar los posts del usuario
     let fetched_posts = user.posts(&pool).await.unwrap();
@@ -183,13 +217,27 @@ async fn test_transaction_insert_and_commit() {
     let pool = setup_pool().await;
     let mut tx = pool.begin().await.unwrap();
 
-    let uid = User::insert(&mut *tx, &NewUser {
-        name: "TxUser".to_string(), edad: 25, email: "tx@x.com".to_string(),
-    }).await.unwrap();
+    let uid = User::insert(
+        &mut *tx,
+        &NewUser {
+            name: "TxUser".to_string(),
+            edad: 25,
+            email: "tx@x.com".to_string(),
+        },
+    )
+    .await
+    .unwrap();
 
-    let pid = Post::insert(&mut *tx, &NewPost {
-        title: "TxPost".to_string(), content: "C".to_string(), user_id: uid,
-    }).await.unwrap();
+    let pid = Post::insert(
+        &mut *tx,
+        &NewPost {
+            title: "TxPost".to_string(),
+            content: "C".to_string(),
+            user_id: uid,
+        },
+    )
+    .await
+    .unwrap();
 
     tx.commit().await.unwrap();
 
@@ -206,9 +254,16 @@ async fn test_transaction_rollback() {
     let pool = setup_pool().await;
     let mut tx = pool.begin().await.unwrap();
 
-    let uid = User::insert(&mut *tx, &NewUser {
-        name: "RollbackUser".to_string(), edad: 99, email: "rb@x.com".to_string(),
-    }).await.unwrap();
+    let uid = User::insert(
+        &mut *tx,
+        &NewUser {
+            name: "RollbackUser".to_string(),
+            edad: 99,
+            email: "rb@x.com".to_string(),
+        },
+    )
+    .await
+    .unwrap();
 
     tx.rollback().await.unwrap();
 
@@ -222,16 +277,37 @@ async fn test_transaction_has_many_relation() {
     let pool = setup_pool().await;
     let mut tx = pool.begin().await.unwrap();
 
-    let uid = User::insert(&mut *tx, &NewUser {
-        name: "RelTx".to_string(), edad: 30, email: "reltx@x.com".to_string(),
-    }).await.unwrap();
+    let uid = User::insert(
+        &mut *tx,
+        &NewUser {
+            name: "RelTx".to_string(),
+            edad: 30,
+            email: "reltx@x.com".to_string(),
+        },
+    )
+    .await
+    .unwrap();
 
-    Post::insert(&mut *tx, &NewPost {
-        title: "P1".to_string(), content: "C1".to_string(), user_id: uid,
-    }).await.unwrap();
-    Post::insert(&mut *tx, &NewPost {
-        title: "P2".to_string(), content: "C2".to_string(), user_id: uid,
-    }).await.unwrap();
+    Post::insert(
+        &mut *tx,
+        &NewPost {
+            title: "P1".to_string(),
+            content: "C1".to_string(),
+            user_id: uid,
+        },
+    )
+    .await
+    .unwrap();
+    Post::insert(
+        &mut *tx,
+        &NewPost {
+            title: "P2".to_string(),
+            content: "C2".to_string(),
+            user_id: uid,
+        },
+    )
+    .await
+    .unwrap();
 
     // Cargar relación dentro de la misma transacción
     let user = User::get_by_id(&mut *tx, uid).await.unwrap().unwrap();
@@ -246,9 +322,16 @@ async fn test_transaction_query_builder() {
     let pool = setup_pool().await;
     let mut tx = pool.begin().await.unwrap();
 
-    let uid = User::insert(&mut *tx, &NewUser {
-        name: "QBTx".to_string(), edad: 40, email: "qbtx@x.com".to_string(),
-    }).await.unwrap();
+    let uid = User::insert(
+        &mut *tx,
+        &NewUser {
+            name: "QBTx".to_string(),
+            edad: 40,
+            email: "qbtx@x.com".to_string(),
+        },
+    )
+    .await
+    .unwrap();
 
     // QueryBuilder dentro de la transacción
     let users = User::query()
@@ -273,16 +356,33 @@ async fn test_transaction_query_builder() {
 #[tokio::test]
 async fn test_transaction_update_and_delete() {
     let pool = setup_pool().await;
+
+    // Insert fuera de la transacción
+    let uid = User::insert(
+        &pool,
+        &NewUser {
+            name: "UpdDel".to_string(),
+            edad: 50,
+            email: "ud@x.com".to_string(),
+        },
+    )
+    .await
+    .unwrap();
+
     let mut tx = pool.begin().await.unwrap();
 
-    let uid = User::insert(&mut *tx, &NewUser {
-        name: "UpdDel".to_string(), edad: 50, email: "ud@x.com".to_string(),
-    }).await.unwrap();
-
     // Update dentro de la transacción
-    User::put(&mut *tx, uid, &NewUser {
-        name: "Updated".to_string(), edad: 51, email: "ud2@x.com".to_string(),
-    }).await.unwrap();
+    User::put(
+        &mut *tx,
+        uid,
+        &NewUser {
+            name: "Updated".to_string(),
+            edad: 51,
+            email: "ud2@x.com".to_string(),
+        },
+    )
+    .await
+    .unwrap();
 
     let user = User::get_by_id(&mut *tx, uid).await.unwrap().unwrap();
     assert_eq!(user.name, "Updated");

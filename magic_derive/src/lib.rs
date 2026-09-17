@@ -1,14 +1,17 @@
 extern crate proc_macro;
 
 use proc_macro::TokenStream;
-use syn::{parse_macro_input, DeriveInput};
+use syn::{DeriveInput, parse_macro_input};
 
-pub(crate) mod input;
 pub(crate) mod codegen;
+pub(crate) mod input;
 pub(crate) mod operations;
 
-use input::{analyze_model, attrs::{parse_model_fks, parse_magic_attributes}};
 use codegen::expand_magic_model;
+use input::{
+    analyze_model,
+    attrs::{parse_magic_attributes, parse_model_fks},
+};
 
 macro_rules! unwrap_or_ts {
     ($expr:expr) => {
@@ -27,8 +30,7 @@ pub fn derive_magic_model(input: TokenStream) -> TokenStream {
 
     let model = unwrap_or_ts!(analyze_model(&input));
 
-    let fk_fields= unwrap_or_ts!(parse_model_fks(&model));
+    let fk_fields = unwrap_or_ts!(parse_model_fks(&model));
 
     expand_magic_model(&input, config, model, &fk_fields).into()
 }
-

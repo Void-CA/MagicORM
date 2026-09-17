@@ -24,7 +24,10 @@ where
 
     match result {
         Ok(row) => {
-            debug!(elapsed_us = elapsed.as_micros() as u64, "load_belongs_to done");
+            debug!(
+                elapsed_us = elapsed.as_micros() as u64,
+                "load_belongs_to done"
+            );
             Ok(row)
         }
         Err(e) => {

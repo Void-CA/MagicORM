@@ -69,11 +69,20 @@ pub fn diff(desired: &[ModelDescriptor], actual: &[ModelDescriptor]) -> Vec<Migr
             continue; // ya se manejó como CreateTable
         };
 
-        let desired_cols: HashSet<String> = desired_desc.columns.iter().map(|c| c.name.clone()).collect();
-        let actual_cols: HashSet<String> = actual_desc.columns.iter().map(|c| c.name.clone()).collect();
+        let desired_cols: HashSet<String> = desired_desc
+            .columns
+            .iter()
+            .map(|c| c.name.clone())
+            .collect();
+        let actual_cols: HashSet<String> =
+            actual_desc.columns.iter().map(|c| c.name.clone()).collect();
 
         // Columnas nuevas
-        for col in desired_desc.columns.iter().filter(|c| !actual_cols.contains(&c.name)) {
+        for col in desired_desc
+            .columns
+            .iter()
+            .filter(|c| !actual_cols.contains(&c.name))
+        {
             steps.push(MigrationStep::AddColumn {
                 table: desired_desc.table.to_string(),
                 column: col.clone(),
@@ -81,7 +90,11 @@ pub fn diff(desired: &[ModelDescriptor], actual: &[ModelDescriptor]) -> Vec<Migr
         }
 
         // Columnas eliminadas
-        for col in actual_desc.columns.iter().filter(|c| !desired_cols.contains(&c.name)) {
+        for col in actual_desc
+            .columns
+            .iter()
+            .filter(|c| !desired_cols.contains(&c.name))
+        {
             steps.push(MigrationStep::DropColumn {
                 table: desired_desc.table.to_string(),
                 column: col.name.to_string(),
@@ -131,7 +144,11 @@ pub fn diff(desired: &[ModelDescriptor], actual: &[ModelDescriptor]) -> Vec<Migr
 /// Convierte un MigrationStep a SQL usando el dialecto indicado.
 pub fn render_step<D: SqlDialect>(step: &MigrationStep) -> String {
     match step {
-        MigrationStep::CreateTable { table, columns, foreign_keys } => {
+        MigrationStep::CreateTable {
+            table,
+            columns,
+            foreign_keys,
+        } => {
             let mut sql = format!("CREATE TABLE {} (\n", D::quote_identifier(table));
             let mut defs: Vec<String> = columns
                 .iter()
@@ -235,11 +252,30 @@ mod tests {
         ModelDescriptor {
             table: "users".to_string(),
             columns: vec![
-                ColumnMeta { name: "id".to_string(), sql_type: "INTEGER".to_string(), nullable: false, primary_key: true, auto_increment: true },
-                ColumnMeta { name: "name".to_string(), sql_type: "TEXT".to_string(), nullable: false, primary_key: false, auto_increment: false },
-                ColumnMeta { name: "email".to_string(), sql_type: "TEXT".to_string(), nullable: true, primary_key: false, auto_increment: false },
+                ColumnMeta {
+                    name: "id".to_string(),
+                    sql_type: "INTEGER".to_string(),
+                    nullable: false,
+                    primary_key: true,
+                    auto_increment: true,
+                },
+                ColumnMeta {
+                    name: "name".to_string(),
+                    sql_type: "TEXT".to_string(),
+                    nullable: false,
+                    primary_key: false,
+                    auto_increment: false,
+                },
+                ColumnMeta {
+                    name: "email".to_string(),
+                    sql_type: "TEXT".to_string(),
+                    nullable: true,
+                    primary_key: false,
+                    auto_increment: false,
+                },
             ],
             foreign_keys: vec![],
+            indexes: vec![],
         }
     }
 
@@ -247,13 +283,34 @@ mod tests {
         ModelDescriptor {
             table: "posts".to_string(),
             columns: vec![
-                ColumnMeta { name: "id".to_string(), sql_type: "INTEGER".to_string(), nullable: false, primary_key: true, auto_increment: true },
-                ColumnMeta { name: "title".to_string(), sql_type: "TEXT".to_string(), nullable: false, primary_key: false, auto_increment: false },
-                ColumnMeta { name: "user_id".to_string(), sql_type: "INTEGER".to_string(), nullable: false, primary_key: false, auto_increment: false },
+                ColumnMeta {
+                    name: "id".to_string(),
+                    sql_type: "INTEGER".to_string(),
+                    nullable: false,
+                    primary_key: true,
+                    auto_increment: true,
+                },
+                ColumnMeta {
+                    name: "title".to_string(),
+                    sql_type: "TEXT".to_string(),
+                    nullable: false,
+                    primary_key: false,
+                    auto_increment: false,
+                },
+                ColumnMeta {
+                    name: "user_id".to_string(),
+                    sql_type: "INTEGER".to_string(),
+                    nullable: false,
+                    primary_key: false,
+                    auto_increment: false,
+                },
             ],
-            foreign_keys: vec![
-                ForeignKeyMeta { field: "user_id".to_string(), related_table: "users".to_string(), related_column: "id".to_string() },
-            ],
+            foreign_keys: vec![ForeignKeyMeta {
+                field: "user_id".to_string(),
+                related_table: "users".to_string(),
+                related_column: "id".to_string(),
+            }],
+            indexes: vec![],
         }
     }
 
@@ -279,25 +336,63 @@ mod tests {
     fn test_diff_add_column() {
         let mut user = user_descriptor();
         user.columns = vec![
-            ColumnMeta { name: "id".to_string(), sql_type: "INTEGER".to_string(), nullable: false, primary_key: true, auto_increment: true },
-            ColumnMeta { name: "name".to_string(), sql_type: "TEXT".to_string(), nullable: false, primary_key: false, auto_increment: false },
-            ColumnMeta { name: "email".to_string(), sql_type: "TEXT".to_string(), nullable: true, primary_key: false, auto_increment: false },
-            ColumnMeta { name: "age".to_string(), sql_type: "INTEGER".to_string(), nullable: true, primary_key: false, auto_increment: false },
+            ColumnMeta {
+                name: "id".to_string(),
+                sql_type: "INTEGER".to_string(),
+                nullable: false,
+                primary_key: true,
+                auto_increment: true,
+            },
+            ColumnMeta {
+                name: "name".to_string(),
+                sql_type: "TEXT".to_string(),
+                nullable: false,
+                primary_key: false,
+                auto_increment: false,
+            },
+            ColumnMeta {
+                name: "email".to_string(),
+                sql_type: "TEXT".to_string(),
+                nullable: true,
+                primary_key: false,
+                auto_increment: false,
+            },
+            ColumnMeta {
+                name: "age".to_string(),
+                sql_type: "INTEGER".to_string(),
+                nullable: true,
+                primary_key: false,
+                auto_increment: false,
+            },
         ];
 
         let desired = vec![user];
         let actual = vec![user_descriptor()];
         let steps = diff(&desired, &actual);
         assert_eq!(steps.len(), 1);
-        assert!(matches!(&steps[0], MigrationStep::AddColumn { column, .. } if column.name == "age"));
+        assert!(
+            matches!(&steps[0], MigrationStep::AddColumn { column, .. } if column.name == "age")
+        );
     }
 
     #[test]
     fn test_diff_drop_column() {
         let mut user = user_descriptor();
         user.columns = vec![
-            ColumnMeta { name: "id".to_string(), sql_type: "INTEGER".to_string(), nullable: false, primary_key: true, auto_increment: true },
-            ColumnMeta { name: "name".to_string(), sql_type: "TEXT".to_string(), nullable: false, primary_key: false, auto_increment: false },
+            ColumnMeta {
+                name: "id".to_string(),
+                sql_type: "INTEGER".to_string(),
+                nullable: false,
+                primary_key: true,
+                auto_increment: true,
+            },
+            ColumnMeta {
+                name: "name".to_string(),
+                sql_type: "TEXT".to_string(),
+                nullable: false,
+                primary_key: false,
+                auto_increment: false,
+            },
         ];
 
         let desired = vec![user];
@@ -313,7 +408,8 @@ mod tests {
         let actual = vec![ModelDescriptor {
             table: "posts".to_string(),
             columns: post_descriptor().columns,
-            foreign_keys: vec![], // sin FK
+            foreign_keys: vec![],
+            indexes: vec![],
         }];
         let steps = diff(&desired, &actual);
         assert_eq!(steps.len(), 1);
@@ -351,8 +447,20 @@ mod tests {
         let step = MigrationStep::CreateTable {
             table: "users".to_string(),
             columns: vec![
-                ColumnMeta { name: "id".to_string(), sql_type: "INTEGER".to_string(), nullable: false, primary_key: true, auto_increment: true },
-                ColumnMeta { name: "name".to_string(), sql_type: "TEXT".to_string(), nullable: false, primary_key: false, auto_increment: false },
+                ColumnMeta {
+                    name: "id".to_string(),
+                    sql_type: "INTEGER".to_string(),
+                    nullable: false,
+                    primary_key: true,
+                    auto_increment: true,
+                },
+                ColumnMeta {
+                    name: "name".to_string(),
+                    sql_type: "TEXT".to_string(),
+                    nullable: false,
+                    primary_key: false,
+                    auto_increment: false,
+                },
             ],
             foreign_keys: vec![],
         };
@@ -364,7 +472,9 @@ mod tests {
 
     #[test]
     fn test_render_drop_table() {
-        let sql = render_step::<SqliteDialect>(&MigrationStep::DropTable { table: "users".to_string() });
+        let sql = render_step::<SqliteDialect>(&MigrationStep::DropTable {
+            table: "users".to_string(),
+        });
         assert_eq!(sql, "DROP TABLE IF EXISTS \"users\";");
     }
 
@@ -372,7 +482,13 @@ mod tests {
     fn test_render_add_column() {
         let step = MigrationStep::AddColumn {
             table: "users".to_string(),
-            column: ColumnMeta { name: "age".to_string(), sql_type: "INTEGER".to_string(), nullable: true, primary_key: false, auto_increment: false },
+            column: ColumnMeta {
+                name: "age".to_string(),
+                sql_type: "INTEGER".to_string(),
+                nullable: true,
+                primary_key: false,
+                auto_increment: false,
+            },
         };
         let sql = render_step::<SqliteDialect>(&step);
         assert!(sql.contains("ALTER TABLE"));
@@ -382,7 +498,10 @@ mod tests {
 
     #[test]
     fn test_render_drop_column() {
-        let sql = render_step::<SqliteDialect>(&MigrationStep::DropColumn { table: "users".to_string(), column: "email".to_string() });
+        let sql = render_step::<SqliteDialect>(&MigrationStep::DropColumn {
+            table: "users".to_string(),
+            column: "email".to_string(),
+        });
         assert!(sql.contains("DROP COLUMN"));
         assert!(sql.contains("email"));
     }
@@ -391,7 +510,11 @@ mod tests {
     fn test_render_add_foreign_key() {
         let step = MigrationStep::AddForeignKey {
             table: "posts".to_string(),
-            fk: ForeignKeyMeta { field: "user_id".to_string(), related_table: "users".to_string(), related_column: "id".to_string() },
+            fk: ForeignKeyMeta {
+                field: "user_id".to_string(),
+                related_table: "users".to_string(),
+                related_column: "id".to_string(),
+            },
         };
         let sql = render_step::<SqliteDialect>(&step);
         assert!(sql.contains("ADD FOREIGN KEY"));
@@ -405,14 +528,32 @@ mod tests {
             MigrationStep::CreateTable {
                 table: "users".to_string(),
                 columns: vec![
-                ColumnMeta { name: "id".to_string(), sql_type: "INTEGER".to_string(), nullable: false, primary_key: true, auto_increment: true },
-                    ColumnMeta { name: "name".to_string(), sql_type: "TEXT".to_string(), nullable: false, primary_key: false, auto_increment: false },
+                    ColumnMeta {
+                        name: "id".to_string(),
+                        sql_type: "INTEGER".to_string(),
+                        nullable: false,
+                        primary_key: true,
+                        auto_increment: true,
+                    },
+                    ColumnMeta {
+                        name: "name".to_string(),
+                        sql_type: "TEXT".to_string(),
+                        nullable: false,
+                        primary_key: false,
+                        auto_increment: false,
+                    },
                 ],
                 foreign_keys: vec![],
             },
             MigrationStep::AddColumn {
                 table: "users".to_string(),
-                column: ColumnMeta { name: "age".to_string(), sql_type: "INTEGER".to_string(), nullable: true, primary_key: false, auto_increment: false },
+                column: ColumnMeta {
+                    name: "age".to_string(),
+                    sql_type: "INTEGER".to_string(),
+                    nullable: true,
+                    primary_key: false,
+                    auto_increment: false,
+                },
             },
         ];
         let sql = render_migration::<SqliteDialect>(&steps);

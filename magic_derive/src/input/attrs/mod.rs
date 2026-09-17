@@ -1,5 +1,5 @@
-pub mod magic;
 pub mod foreign_key;
+pub mod magic;
 
-pub use magic::{MagicConfig, parse_magic_attributes};
 pub use foreign_key::{FKConfig, parse_model_fks};
+pub use magic::{IndexConfig, MagicConfig, parse_magic_attributes};

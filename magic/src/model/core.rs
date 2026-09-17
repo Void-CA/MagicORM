@@ -7,11 +7,7 @@ use crate::relations::traits::HasFK;
 // ---------------------------------------------------------------------------
 
 pub trait Model:
-    ModelMeta
-    + Sized
-    + Send
-    + Unpin
-    + for<'r> sqlx::FromRow<'r, <Self::DB as sqlx::Database>::Row>
+    ModelMeta + Sized + Send + Unpin + for<'r> sqlx::FromRow<'r, <Self::DB as sqlx::Database>::Row>
 {
     type Id: Send
         + std::fmt::Display
@@ -48,11 +44,7 @@ pub trait BelongsTo<P: Model>: Model {
 #[async_trait::async_trait]
 pub trait HasMany<C>: Model
 where
-    C: Model<DB = Self::DB>
-        + ModelMeta
-        + HasFK<Self>
-        + Send
-        + Unpin,
+    C: Model<DB = Self::DB> + ModelMeta + HasFK<Self> + Send + Unpin,
 {
     async fn load_children<'e, E>(&self, executor: E) -> anyhow::Result<Vec<C>>
     where

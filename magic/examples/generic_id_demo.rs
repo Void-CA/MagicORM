@@ -20,7 +20,7 @@ pub struct User {
 #[derive(MagicModel, Debug)]
 #[magic(table = "products")]
 pub struct Product {
-    pub id: i32,  // ID genérico - tipo i32
+    pub id: i32, // ID genérico - tipo i32
     pub name: String,
     pub price: f64,
 }
@@ -30,10 +30,7 @@ register_models!(User, Product);
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     // Conectar a base de datos en memoria
-    let pool = SqlitePool::connect("sqlite::memory:").await?;
-    sqlx::query("PRAGMA foreign_keys = ON;")
-        .execute(&pool)
-        .await?;
+    let pool = Sqlite::pool_with_config(":memory:", SqliteConfig::in_memory()).await?;
 
     // Crear tablas
     create_all::<_, AppModels>(&pool).await?;
@@ -42,10 +39,14 @@ async fn main() -> anyhow::Result<()> {
 
     // 1. Usar modelo con ID i64 (comportamiento tradicional)
     println!("1. Trabajando con User (ID i64)...");
-    let user_id = User::insert(&pool, &NewUser {
-        name: "Alice".to_string(),
-        email: "alice@example.com".to_string(),
-    }).await?;
+    let user_id = User::insert(
+        &pool,
+        &NewUser {
+            name: "Alice".to_string(),
+            email: "alice@example.com".to_string(),
+        },
+    )
+    .await?;
     println!("   Usuario creado con ID i64: {}", user_id);
 
     // Recuperar por ID (usa el tipo correcto automáticamente)
@@ -54,7 +55,7 @@ async fn main() -> anyhow::Result<()> {
 
     // 2. Usar modelo con ID i32
     println!("\n2. Trabajando con Product (ID i32)...");
-    
+
     // Insertar manualmente porque el método insert() devuelve i64
     let product_id = 100i32;
     sqlx::query("INSERT INTO products (id, name, price) VALUES (?, ?, ?)")

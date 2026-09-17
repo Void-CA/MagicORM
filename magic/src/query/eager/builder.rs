@@ -35,11 +35,7 @@ where
 
     pub fn iter(&self) -> impl Iterator<Item = (&P, &[C])> {
         self.parents.iter().map(move |p| {
-            let children = self
-                .children
-                .get(p.id())
-                .map(Vec::as_slice)
-                .unwrap_or(&[]);
+            let children = self.children.get(p.id()).map(Vec::as_slice).unwrap_or(&[]);
             (p, children)
         })
     }

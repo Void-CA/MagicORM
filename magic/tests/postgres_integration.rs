@@ -56,22 +56,37 @@ async fn test_postgres_crud() {
     }
     let pool = setup_pool().await;
 
-    let uid = User::insert(&pool, &NewUser {
-        name: "Alice".to_string(), email: "alice@x.com".to_string(),
-    }).await.unwrap();
+    let uid = User::insert(
+        &pool,
+        &NewUser {
+            name: "Alice".to_string(),
+            email: "alice@x.com".to_string(),
+        },
+    )
+    .await
+    .unwrap();
     assert!(uid > 0);
 
     let user = User::get_by_id(&pool, uid).await.unwrap().unwrap();
     assert_eq!(user.name, "Alice");
 
-    let pid = Post::insert(&pool, &NewPost {
-        title: "P".to_string(), content: "C".to_string(), user_id: uid,
-    }).await.unwrap();
+    let pid = Post::insert(
+        &pool,
+        &NewPost {
+            title: "P".to_string(),
+            content: "C".to_string(),
+            user_id: uid,
+        },
+    )
+    .await
+    .unwrap();
     assert!(pid > 0);
 
     let posts = Post::query()
         .filter("user_id", "=", uid)
-        .fetch_all(&pool).await.unwrap();
+        .fetch_all(&pool)
+        .await
+        .unwrap();
     assert_eq!(posts.len(), 1);
 
     assert_eq!(User::delete_by_id(&pool, uid).await.unwrap(), 1);
@@ -84,16 +99,32 @@ async fn test_postgres_filter_in() {
         return;
     }
     let pool = setup_pool().await;
-    let a = User::insert(&pool, &NewUser {
-        name: "A".to_string(), email: "a@x.com".to_string(),
-    }).await.unwrap();
-    let b = User::insert(&pool, &NewUser {
-        name: "B".to_string(), email: "b@x.com".to_string(),
-    }).await.unwrap();
+    let a = User::insert(
+        &pool,
+        &NewUser {
+            name: "A".to_string(),
+            email: "a@x.com".to_string(),
+        },
+    )
+    .await
+    .unwrap();
+    let b = User::insert(
+        &pool,
+        &NewUser {
+            name: "B".to_string(),
+            email: "b@x.com".to_string(),
+        },
+    )
+    .await
+    .unwrap();
 
     assert_eq!(
-        User::query().filter_in("id", [a, b])
-            .fetch_all(&pool).await.unwrap().len(),
+        User::query()
+            .filter_in("id", [a, b])
+            .fetch_all(&pool)
+            .await
+            .unwrap()
+            .len(),
         2
     );
 }

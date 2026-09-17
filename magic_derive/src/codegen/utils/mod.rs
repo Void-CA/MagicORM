@@ -1,3 +1,3 @@
 pub mod type_mapping;
 
-pub use type_mapping::{map_rust_to_sqlite, is_option};
+pub use type_mapping::{is_option, map_rust_to_sqlite};

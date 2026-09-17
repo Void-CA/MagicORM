@@ -30,9 +30,17 @@ where
     let placeholders = vec!["?"; ids.len()].join(", ");
     let sql = format!(
         "SELECT * FROM {} WHERE {} IN ({})",
-        C::TABLE, fk_column, placeholders
+        C::TABLE,
+        fk_column,
+        placeholders
     );
-    debug!(table = C::TABLE, fk_column, parent_count = parents.len(), distinct_ids = ids.len(), "load_has_many_batch");
+    debug!(
+        table = C::TABLE,
+        fk_column,
+        parent_count = parents.len(),
+        distinct_ids = ids.len(),
+        "load_has_many_batch"
+    );
 
     let mut query = sqlx::query_as::<_, C>(&sql);
     for id in &ids {
@@ -49,7 +57,11 @@ where
                 let key = row.fk_value();
                 map.entry(key).or_default().push(row);
             }
-            debug!(groups = map.len(), elapsed_us = elapsed.as_micros() as u64, "load_has_many_batch done");
+            debug!(
+                groups = map.len(),
+                elapsed_us = elapsed.as_micros() as u64,
+                "load_has_many_batch done"
+            );
             Ok(map)
         }
         Err(e) => {

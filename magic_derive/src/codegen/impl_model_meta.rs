@@ -1,11 +1,13 @@
-use crate::input::attrs::FKConfig;
+use crate::codegen::utils::{is_option, map_rust_to_sqlite};
 use crate::input::ModelInfo;
-use crate::codegen::utils::{map_rust_to_sqlite, is_option};
+use crate::input::attrs::FKConfig;
+use crate::input::attrs::IndexConfig;
 use quote::quote;
 
 pub fn generate_model_meta_impl(
     struct_name: &syn::Ident,
     fk_fields: &[FKConfig],
+    indexes: &[IndexConfig],
     model: &ModelInfo,
     table_name: &str,
 ) -> proc_macro2::TokenStream {
@@ -26,7 +28,8 @@ pub fn generate_model_meta_impl(
                     auto_increment: #auto_inc,
                 }
             }
-        }).collect();
+        })
+        .collect();
 
     let fk_tokens: Vec<_> = fk_fields.iter().map(|fk| {
         let field_name = fk.field_ident.to_string();
@@ -42,6 +45,22 @@ pub fn generate_model_meta_impl(
         }
     }).collect();
 
+    let index_tokens: Vec<_> = indexes
+        .iter()
+        .map(|idx| {
+            let name = &idx.name;
+            let columns = &idx.columns;
+            let unique = idx.unique;
+            quote! {
+                ::magic_orm::model::IndexMeta {
+                    name: #name.to_string(),
+                    columns: vec![#( #columns.to_string(), )*],
+                    unique: #unique,
+                }
+            }
+        })
+        .collect();
+
     quote! {
         impl ::magic_orm::model::ModelMeta for #struct_name {
             const TABLE: &'static str = #table_name;
@@ -55,6 +74,12 @@ pub fn generate_model_meta_impl(
             fn foreign_keys() -> Vec<::magic_orm::model::ForeignKeyMeta> {
                 vec![
                     #( #fk_tokens, )*
+                ]
+            }
+
+            fn indexes() -> Vec<::magic_orm::model::IndexMeta> {
+                vec![
+                    #( #index_tokens, )*
                 ]
             }
         }
