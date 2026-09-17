@@ -23,7 +23,7 @@ where
     }
 
     let mut ids: Vec<P::Id> = parents.iter().map(|p| p.id().clone()).collect();
-    ids.sort_by(|a, b| a.to_string().cmp(&b.to_string()));
+    ids.sort_by_key(|a| a.to_string());
     ids.dedup();
 
     let fk_column = C::fk_for_parent();

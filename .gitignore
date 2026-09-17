@@ -1,5 +1,8 @@
 target/
 
+# Nested lockfiles (workspace lock at root is tracked)
+/*/Cargo.lock
+
 # SQLite artifacts
 *.db
 *.db-shm

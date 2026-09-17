@@ -65,7 +65,7 @@ async fn main() -> anyhow::Result<()> {
 
     let alicia = User::get_by_id(&pool, insert_id).await?.unwrap();
     let mut tx = pool.begin().await?;
-    let posts = alicia.posts(&mut *tx).await?;
+    let _posts = alicia.posts(&mut *tx).await?;
     tx.commit().await?;
 
     let x = User::query().with_many::<Post>().fetch_all(&pool).await?;

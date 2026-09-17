@@ -1,131 +1,174 @@
 # MagicORM
 
-## Why does MagicORM exist?
+[![crates.io](https://img.shields.io/crates/v/magic_orm.svg)](https://crates.io/crates/magic_orm)
+[![docs.rs](https://docs.rs/magic_orm/badge.svg)](https://docs.rs/magic_orm)
+[![license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/Void-CA/MagicORM/blob/main/LICENSE)
 
-MagicORM was born from real-world problems.
+A Rust ORM for SQL databases with a focus on ease of use, low boilerplate, and
+performance.
 
-Not from a theoretical comparison with other ORMs, but from the experience of developing systems that constantly change.
+MagicORM is built for **fast-evolving systems**: when models, relationships,
+and fields change constantly, infrastructure should not dominate the code. It
+uses strong conventions and automatic code generation so the domain model stays
+the center of attention.
 
-During rapid iteration in evolving systems, the same obstacles always appeared:
+- **Backends:** SQLite (default) and PostgreSQL
+- **Schema:** automatic table creation, introspection, and migrations
+- **Queries:** typed `QueryBuilder`, filters, joins, eager loading
+- **Scale:** batch insertion, streaming, keyset pagination, retention helpers
 
-- Too much boilerplate.
-- Repetitive adjustments when requirements changed.
-- Costly refactors for small structural changes.
-- Data access code growing faster than the domain itself.
+## Installation
 
-In the early stages of a project, when everything is evolving, friction doesn't come from complex queries.
-It comes from repetition.
+```toml
+[dependencies]
+magic_orm = "0.2"
+sqlx = { version = "0.8", features = ["runtime-tokio"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+```
 
-### The problem: iterating quickly without infrastructure slowing you down
+SQLite is enabled by default. For PostgreSQL:
 
-When a system is still being defined:
+```toml
+magic_orm = { version = "0.2", default-features = false, features = ["postgres"] }
+```
 
-- Models change.
-- Relationships change.
-- Fields change.
-- Rules change.
+## Quickstart
 
-And every small change ends up impacting:
+```rust,no_run
+use magic_orm::{prelude::*, register_models};
 
-- Mappings.
-- Builders.
-- Configurations.
-- Repetitive implementations.
-- Code that doesn't add real value to the domain.
+#[derive(MagicModel, Debug)]
+#[magic(table = "users")]
+pub struct User {
+    pub id: i64,
+    pub name: String,
+    pub edad: i32,
+    pub email: String,
+}
 
-Infrastructure starts to dominate the code.
+#[derive(MagicModel, Debug)]
+#[magic(table = "posts")]
+pub struct Post {
+    pub id: i64,
+    pub title: String,
+    pub content: String,
 
-MagicORM arises as a direct response to this.
+    #[FK(User)]
+    pub user_id: i64,
+}
 
-## The Goal
+has_many!(User => Post);
+register_models!(User, Post);
 
-Reduce friction in fast-evolving systems.
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    let pool = Sqlite::pool("app.db").await?;
 
-MagicORM is designed to:
+    // Create tables from the registered models.
+    create_all::<_, AppModels>(&pool).await?;
 
-- Minimize boilerplate.
-- Reduce the amount of code affected by change.
-- Centralize conventions.
-- Automate repetitive patterns.
-- Allow the domain model to be the main focus.
+    // Insert.
+    let user_id = User::insert(
+        &pool,
+        &User::new("Alicia".into(), 25, "alicia@example.com".into()),
+    )
+    .await?;
+
+    Post::insert(
+        &pool,
+        &Post::new("First post".into(), "Hello".into(), user_id),
+    )
+    .await?;
+
+    // Fetch by id.
+    let alicia = User::get_by_id(&pool, user_id).await?.unwrap();
+
+    // Load relations.
+    let posts = alicia.posts(&pool).await?;
+    assert_eq!(posts.len(), 1);
+
+    // Query builder.
+    let found = User::query()
+        .filter("edad", ">=", 18)
+        .order_by("name", true)
+        .fetch_all(&pool)
+        .await?;
+    println!("{} adult users", found.len());
+
+    Ok(())
+}
+```
+
+### Transactions
+
+Transactions are exposed directly from `sqlx`:
+
+```rust,no_run
+# use magic_orm::{prelude::*, register_models};
+# #[derive(MagicModel)] #[magic(table = "users")]
+# pub struct User { pub id: i64, pub name: String }
+# register_models!(User);
+# async fn example(pool: SqlitePool) -> anyhow::Result<()> {
+let mut tx = pool.begin().await?;
+User::insert(&mut *tx, &User::new("Bob".into())).await?;
+tx.commit().await?;
+# Ok(()) }
+```
+
+### Batch insertion
+
+```rust,ignore
+User::insert_many(&pool, &users).await?;          // pool
+User::insert_many_in_tx(&mut tx, &users).await?;  // existing transaction
+```
+
+### Upsert
+
+```rust,ignore
+User::upsert(&pool, &new_user).await?;          // conflict on PK, update rest
+User::upsert_with_id(&pool, &user).await?;      // include id in the INSERT
+User::upsert_many(&pool, &users).await?;        // batch
+```
+
+### Migrations
+
+```bash
+cargo install magic_cli   # (coming soon — currently built from source)
+magic migrate new add_users
+magic migrate generate add_users
+magic migrate up
+magic migrate status
+magic migrate down
+```
 
 ## Design Philosophy
 
-### 1. Iteration First
+MagicORM makes a deliberate trade-off: less structural freedom in exchange for
+iteration speed, fewer repeated decisions, and less code affected by change.
 
-MagicORM prioritizes the ability to change the system without every modification requiring a rewrite of half the persistence layer.
+| Reduced                        | Gained           |
+|--------------------------------|------------------|
+| Total structural flexibility   | Iteration speed  |
+| Exhaustive configuration       | Simplicity       |
+| Manual granular control        | Abstraction      |
+| Explicit boilerplate           | Fluidity         |
 
-If the domain evolves, the data layer should adapt with minimal friction.
+See [docs/todo/database_abstraction_roadmap.md](https://github.com/Void-CA/MagicORM/blob/main/docs/todo/database_abstraction_roadmap.md)
+for the capability roadmap and [docs/adr](https://github.com/Void-CA/MagicORM/tree/main/docs/adr) for architecture decisions.
 
-### 2. Aggressive Abstraction
+## Status
 
-MagicORM doesn't try to expose every detail.
-It tries to hide them.
+MagicORM is under active development. The public API may change between minor
+versions until `1.0`.
 
-Repetitive decisions become conventions.
-Standard configurations become implicit behavior.
+- P0 — SQLite persistence ✅
+- P1 — ORM/runtime quality ✅
+- P2 — Data lifecycle (indexes, cursors, streaming, retention) ✅
+- P3 — Schema evolution (migrations, diff engine, rollback) ✅
+- P3.5 — Production hardening (structured errors, perf regression, concurrency docs) 🚧
 
-Yes, this means less structural freedom.
-But in exchange:
+## License
 
-- Less repeated code.
-- Fewer points of failure.
-- Less surface to maintain.
+Licensed under the [MIT License](https://github.com/Void-CA/MagicORM/blob/main/LICENSE).
 
-### 3. Conventions Over Configuration
-
-Many maintenance problems arise from excessive flexibility.
-
-MagicORM adopts strong conventions to avoid:
-
-- Redundant configuration.
-- Inconsistent structures.
-- Different styles within the same project.
-
-Consistency is not accidental. It is enforced.
-
-### 4. Boilerplate as a Symptom
-
-If to perform a common operation you need to:
-
-- Define auxiliary structures.
-- Implement multiple traits.
-- Configure extensive builders.
-- Repeat patterns over and over.
-
-Then the system is leaking infrastructure into the domain.
-
-MagicORM seeks to reduce this to a minimum.
-
-## The Conscious Trade-off
-
-MagicORM is not a tool for those who need absolute control over every detail.
-
-The trade-off is clear:
-
-| What is reduced                | What is gained         |
-|-------------------------------|------------------------|
-| Total structural flexibility   | Iteration speed        |
-| Exhaustive configuration       | Simplicity             |
-| Manual granular control        | Abstraction            |
-| Explicit boilerplate           | Fluidity               |
-
-It is not designed for extreme optimization.
-It is designed for evolutionary development.
-
-## What MagicORM Tries to Be
-
-- A facilitator during early growth stages.
-- A layer that absorbs frequent changes.
-- A tool that encourages experimentation and refactoring.
-- A system that reduces cognitive load when modifying the model.
-
-## Current State
-
-MagicORM is in the design phase.
-
-The syntax is not yet defined.
-The current priority is to establish solid principles before a definitive API.
-
-First, solve the friction.
-Then, design the tool.
+Copyright (c) 2026 Ari Castillo &lt;castilloari282@gmail.com&gt;

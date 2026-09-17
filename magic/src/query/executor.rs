@@ -70,12 +70,12 @@ macro_rules! impl_query_executor {
             /// # Ok(())
             /// # }
             /// ```
-            pub fn stream<'e, 'c: 'e, E: 'e>(
+            pub fn stream<'e, 'c: 'e, E>(
                 self,
                 executor: E,
             ) -> Result<BoxStream<'e, Result<T, sqlx::Error>>, sqlx::Error>
             where
-                E: Executor<'c, Database = $db>,
+                E: Executor<'c, Database = $db> + 'e,
                 T: 'e,
             {
                 let sql = self.build_sql();

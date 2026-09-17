@@ -3,7 +3,7 @@ use quote::quote;
 
 pub fn generate_belongs_to_impls(
     fk_fields: &[FKConfig],
-    struct_name: &syn::Ident,
+    _struct_name: &syn::Ident,
 ) -> proc_macro2::TokenStream {
     let belongs_to_impls = fk_fields.iter().map(|fk| {
     let field_ident = &fk.field_ident;

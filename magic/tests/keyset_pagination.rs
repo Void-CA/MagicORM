@@ -202,7 +202,7 @@ async fn keyset_pagination_desc_order() {
         .unwrap();
 
     // DESC order
-    let all = PaginationObservation::query()
+    let _all = PaginationObservation::query()
         .filter("session_id", "=", 1i64)
         .order_by("timestamp", false)
         .order_by("id", false)

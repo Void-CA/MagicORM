@@ -1161,7 +1161,7 @@ async fn benchmark_keyset_vs_offset() {
     for offset in [0, 10_000, 50_000, 90_000] {
         // OFFSET approach
         let start = Instant::now();
-        let rows = Observation::query()
+        let _rows = Observation::query()
             .filter("session_id", "=", 1i64)
             .order_by("timestamp", true)
             .order_by("id", true)
@@ -1206,7 +1206,7 @@ async fn benchmark_keyset_vs_offset() {
 
         // Keyset approach
         let start = Instant::now();
-        let rows_keyset = Observation::query()
+        let _rows_keyset = Observation::query()
             .filter("session_id", "=", 1i64)
             .order_by("timestamp", true)
             .order_by("id", true)

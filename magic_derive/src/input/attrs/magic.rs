@@ -116,10 +116,10 @@ fn pluralize(word: &str) -> String {
         && !"aeiou".contains(word.chars().nth(word.len() - 2).unwrap())
     {
         // consonant + y → ies
-        format!("{}ies", &word[..word.len() - 1])
+        format!("{}ies", word.strip_suffix('y').unwrap_or(word))
     } else if word.ends_with('f') {
         // f → ves (aproximado)
-        format!("{}ves", &word[..word.len() - 1])
+        format!("{}ves", word.strip_suffix('f').unwrap_or(word))
     } else {
         format!("{}s", word)
     }

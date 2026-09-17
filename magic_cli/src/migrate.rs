@@ -4,9 +4,9 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use magic_orm::dialect::{HasDialect, PostgresDialect, SqlDialect, SqliteDialect};
-use magic_orm::model::{ColumnMeta, ForeignKeyMeta, ModelDescriptor};
-use magic_orm::schema::migration::{MigrationStep, diff, render_migration};
+use magic_orm::dialect::SqliteDialect;
+use magic_orm::model::ModelDescriptor;
+use magic_orm::schema::migration::{diff, render_migration};
 use magic_orm::sqlite::Sqlite;
 
 // ---------------------------------------------------------------------------
@@ -70,9 +70,7 @@ pub fn new(name: &str) -> Result<()> {
     let filename = format!("{}_{}.sql", ts, name);
     let path = dir.join(&filename);
 
-    let template = format!(
-        "-- UP\n-- Escribe aquí el SQL de migración\n\n\n-- DOWN\n-- Escribe aquí el SQL de rollback\n"
-    );
+    let template = "-- UP\n-- Escribe aquí el SQL de migración\n\n\n-- DOWN\n-- Escribe aquí el SQL de rollback\n";
 
     fs::write(&path, template)?;
     println!("Creada: {}", path.display());

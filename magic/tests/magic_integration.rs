@@ -86,7 +86,7 @@ async fn test_transaction_success() {
     .await
     .unwrap();
 
-    let reaction_id = Reaction::insert(
+    let _reaction_id = Reaction::insert(
         &mut *tx,
         &NewReaction {
             reaction_type: "like".to_string(),
@@ -164,7 +164,7 @@ async fn test_has_many_relationship() {
     let user = User::get_by_id(&pool, user_id).await.unwrap().unwrap();
 
     // Crear un post asociado
-    let post_id = Post::insert(
+    let _post_id = Post::insert(
         &pool,
         &NewPost {
             title: "RelPost".to_string(),

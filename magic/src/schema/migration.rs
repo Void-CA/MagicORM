@@ -247,7 +247,7 @@ fn format_column_def<D: SqlDialect>(col: &ColumnMeta) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::dialect::{SqliteDialect, PostgresDialect};
+    use crate::dialect::{PostgresDialect, SqliteDialect};
 
     fn user_descriptor() -> ModelDescriptor {
         ModelDescriptor {
@@ -706,9 +706,9 @@ mod tests {
         let steps = diff(&desired, &actual);
         // Should produce: DropColumn(user_id) + DropForeignKey(user_id)
         assert_eq!(steps.len(), 2);
-        let has_drop_fk = steps.iter().any(|s| {
-            matches!(s, MigrationStep::DropForeignKey { fk, .. } if fk.field == "user_id")
-        });
+        let has_drop_fk = steps.iter().any(
+            |s| matches!(s, MigrationStep::DropForeignKey { fk, .. } if fk.field == "user_id"),
+        );
         assert!(has_drop_fk);
     }
 }

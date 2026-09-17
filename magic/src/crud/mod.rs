@@ -3,7 +3,7 @@ use std::time::Instant;
 use crate::dialect::{HasDialect, SqlDialect};
 use crate::model::Model;
 use crate::query::statement::BindArg;
-use sqlx::{Database, Executor, Transaction};
+use sqlx::{Executor, Transaction};
 use tracing::debug;
 
 pub const DEFAULT_BATCH_SIZE: usize = 100;

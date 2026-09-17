@@ -1,7 +1,7 @@
 use std::time::Instant;
 
 use crate::model::{IndexMeta, ModelDescriptor, ModelMeta, RegisteredModels};
-use sqlx::{Executor, IntoArguments};
+use sqlx::Executor;
 use std::collections::HashSet;
 use tracing::debug;
 

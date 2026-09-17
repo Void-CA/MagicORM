@@ -5,7 +5,8 @@ pub struct FKConfig {
     pub model: syn::Ident,       // User
     pub field_ident: syn::Ident, // user_id
     pub column: String,          // default "id"
-    pub on_delete: String,       // default "CASCADE"
+    #[allow(dead_code)]
+    pub on_delete: String, // default "CASCADE"
 }
 
 pub fn parse_model_fks(model: &ModelInfo) -> Result<Vec<FKConfig>> {
@@ -13,7 +14,7 @@ pub fn parse_model_fks(model: &ModelInfo) -> Result<Vec<FKConfig>> {
         .other_fields
         .iter()
         .filter(|f| f.attrs.iter().any(|a| a.path().is_ident("FK")))
-        .map(|f| parse_fk_attributes(f))
+        .map(parse_fk_attributes)
         .collect()
 }
 

@@ -105,7 +105,7 @@ async fn thalos_lifecycle() {
         .fetch_all(&pool)
         .await
         .unwrap();
-    assert!(filtered.len() > 0);
+    assert!(!filtered.is_empty());
     assert!(
         filtered
             .iter()

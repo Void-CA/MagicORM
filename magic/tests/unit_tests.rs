@@ -70,9 +70,9 @@ fn test_bind_arg_from_i32() {
 
 #[test]
 fn test_bind_arg_from_f64() {
-    let v = 3.14f64;
+    let v = 2.75f64;
     let arg = BindArg::from(v);
-    assert!(matches!(arg, BindArg::F64(x) if (x - 3.14).abs() < 0.001));
+    assert!(matches!(arg, BindArg::F64(x) if (x - 2.75).abs() < 0.001));
 }
 
 #[test]

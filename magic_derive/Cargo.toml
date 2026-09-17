@@ -1,9 +1,16 @@
 [package]
 name = "magic_derive"
-version = "0.1.2"
+version = "0.1.3"
 edition = "2024"
+rust-version = "1.85"
 description = "Procedural macros for the Magic ORM, providing derive macros for model definitions."
 license = "MIT"
+repository = "https://github.com/Void-CA/MagicORM"
+homepage = "https://github.com/Void-CA/MagicORM"
+documentation = "https://docs.rs/magic_derive"
+readme = "README.md"
+keywords = ["orm", "derive", "proc-macro", "macros", "sql"]
+categories = ["database", "development-tools::procedural-macro-helpers"]
 
 [lib]
 proc-macro = true

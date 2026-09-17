@@ -135,12 +135,11 @@ impl Sqlite {
 }
 
 fn build_options(path: &str, config: &SqliteConfig) -> SqliteConnectOptions {
-    let options = SqliteConnectOptions::new()
+    SqliteConnectOptions::new()
         .filename(path)
         .create_if_missing(true)
         .journal_mode(config.journal_mode)
         .foreign_keys(config.foreign_keys)
         .busy_timeout(config.busy_timeout)
-        .pragma("synchronous", config.synchronous.as_str());
-    options
+        .pragma("synchronous", config.synchronous.as_str())
 }

@@ -39,7 +39,7 @@ pub trait SqlDialect: Send + Sync + 'static {
     fn map_rust_type(rust_ty: &str) -> &'static str;
 
     /// Genera SQL para eliminar una foreign key.
-    /// Postgres: ALTER TABLE t DROP CONSTRAINT <name>;
+    /// Postgres: `ALTER TABLE t DROP CONSTRAINT <name>;`
     /// SQLite: secuencia de table rebuild (PRAGMA off, CREATE new, INSERT SELECT, DROP old, RENAME).
     fn drop_foreign_key(
         table: &str,

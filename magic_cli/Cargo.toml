@@ -2,6 +2,10 @@
 name = "magic_cli"
 version = "0.1.0"
 edition = "2024"
+description = "Command-line interface for MagicORM (migrations, schema management)."
+license = "MIT"
+repository = "https://github.com/Void-CA/MagicORM"
+publish = false
 
 [dependencies]
 anyhow = "1.0.102"

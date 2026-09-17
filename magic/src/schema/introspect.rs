@@ -7,6 +7,7 @@ use sqlx::Executor;
 // =========================================================================
 
 #[derive(Debug, sqlx::FromRow)]
+#[allow(dead_code)]
 struct TableInfoRow {
     cid: i32,
     name: String,
@@ -18,6 +19,7 @@ struct TableInfoRow {
 }
 
 #[derive(Debug, sqlx::FromRow)]
+#[allow(dead_code)]
 struct ForeignKeyRow {
     id: i32,
     seq: i32,
@@ -93,7 +95,7 @@ where
 }
 
 /// Describe todas las tablas definidas por el usuario en la base de datos.
-/// Retorna Vec<ModelDescriptor> compatible con `all_descriptors()`.
+/// Retorna `Vec<ModelDescriptor>` compatible con `all_descriptors()`.
 pub async fn describe_database<'e, E>(executor: E) -> anyhow::Result<Vec<ModelDescriptor>>
 where
     E: Executor<'e, Database = sqlx::Sqlite> + Copy,
@@ -119,7 +121,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::sqlite::{Sqlite, SqliteConfig};
+    use crate::sqlite::SqliteConfig;
 
     async fn setup_db() -> sqlx::SqlitePool {
         let pool = crate::sqlite::Sqlite::pool_with_config(":memory:", SqliteConfig::in_memory())
