@@ -1,231 +1,179 @@
-# Roadmap: Database Abstraction for magic_orm
+# MagicORM Roadmap
 
-## Current State (May 2026)
+## Current State (Sep 2026)
 
-### ✅ What's Working
-- `Model::Id` is generic with `Clone + Eq + Hash + Display` bounds
-- `QueryBuilder` is database-agnostic (no DB-specific code)
-- Basic CRUD operations work with SQLite
+### P0 — Local SQLite persistence ✅ COMPLETED
 
-### ❌ Critical SQLite Coupling
+- Connection API (`Sqlite::open`)
+- Pool API (`Sqlite::pool`)
+- WAL + SQLite configuration (`SqliteConfig`)
+- Foreign keys (automated via config)
+- busy_timeout (5s default)
+- In-memory support (`SqliteConfig::in_memory()`)
+- Dependency cleanup (`sqlx` with `default-features = false`)
+- Thalos lifecycle E2E (open → migrate → CRUD → transaction → query → close → reopen → verify)
+- Persistence across reopen verified
+- Transactions (sqlx native, works with CRUD)
 
-#### 1. **Hardcoded SQLite Types in Trait Bounds**
-```rust
-// Everywhere in the codebase:
-T: for<'r> sqlx::FromRow<'r, sqlx::sqlite::SqliteRow>  // ❌
-E: sqlx::Executor<'a, Database = Sqlite>                    // ❌
-T::Id: sqlx::Encode<'q, sqlx::Sqlite>                     // ❌
-```
-
-**Files affected:**
-- `magic/src/model/core.rs` (Model trait)
-- `magic/src/query/executor.rs` (QueryBuilder bounds)
-- `magic/src/query/eager/executor.rs` (EagerQueryBuilder bounds)
-- `magic/src/relations/loaders/*/` (all loaders)
-- `magic/src/relations/traits.rs` (HasFK trait)
-
-#### 2. **SQLite-Specific Logic**
-- `last_insert_rowid()` in `magic_derive/src/operations/crud/insert.rs`
-- `PRAGMA foreign_keys = ON` in examples/tests
-- `map_rust_to_sqlite()` in `magic_derive/src/codegen/utils/type_mapping.rs`
-
-#### 3. **Exposed SQLite Types in Prelude**
-```rust
-// magic/src/prelude.rs
-pub use sqlx::SqlitePool;  // ❌ Should be generic
-```
-
-#### 4. **Single Executor Adapter**
-- Only `magic/src/executor/adapters/sqlite.rs` exists
-- Assumes `SqlitePool` and `SqliteConnection`
+**Known issues:**
+- 2 pre-existing `magic_integration` failures (`test_transaction_rollback`, `test_transaction_update_and_delete`)
+- `cargo check --no-default-features --features postgres` fails (duplicate function names in `impl_crud!`, `last_insert_rowid()` used for Postgres)
+- Not introduced by SQLite connection work
+- Must remain tracked independently
 
 ---
 
-## Roadmap to Database Abstraction
+### P1 — ORM/runtime quality ✅ COMPLETED
 
-### Phase 1: Generic Database Trait (Foundation)
-**Goal**: Remove hardcoded `SqliteRow` and `Sqlite` from core traits.
+#### P1.1 — Runtime agnosticism ✅
+Audit direct `tokio::*` usage in `magic/`, `magic_cli/`, `tests/`, `examples/`.
+Goal: no runtime assumptions beyond what sqlx requires.
 
-#### 1.1 Add Associated Database Type to Model
-```rust
-// magic/src/model/core.rs
-pub trait Model: ModelMeta + Sized + Send + Unpin {
-    type Id: Send + Display + Clone + Eq + Hash;
-    type DB: sqlx::Database;  // NEW: Associated database type
-    
-    fn id(&self) -> &Self::Id;
-    // ...
-}
-```
+**Result:** `tokio` moved to dev-dependencies. Library has no direct runtime coupling.
 
-#### 1.2 Update FromRow Bounds
-```rust
-// Before:
-T: for<'r> sqlx::FromRow<'r, sqlx::sqlite::SqliteRow>
+#### P1.2 — Minimal feature graph ✅
+Verify `--no-default-features --features postgres` compiles cleanly.
+Review Cargo.lock / feature graph / binary size.
 
-// After:
-T: for<'r> sqlx::FromRow<'r, sqlx::SqliteRow> + Send + Unpin,
-where T::DB: sqlx::Database
-// Or better: use generic row type
-```
+**Result:** SQLite compiles cleanly. Postgres has pre-existing compilation errors (duplicate function names in `impl_crud!`).
 
-#### 1.3 Create DatabaseExecutor Trait
-```rust
-// magic/src/executor/traits.rs (new or updated)
-pub trait DatabaseExecutor<'e>: sqlx::Executor<'e, Database = Self::DB> {
-    type DB: sqlx::Database;
-    // Add common methods
-}
-```
+#### P1.3 — Bulk ingestion ✅
+Benchmark observation ingestion workload for Thalos.
 
----
+**Results:**
+- Transaction wrapping: 3.5x speedup (9K → 35K rows/s)
+- Prepared statements: 1.3x speedup (35K → 45K rows/s)
+- Batch VALUES 100/stmt: 7-10x speedup (45K → 330K rows/s)
+- Thalos workload (20ch × 10Hz): 348ms for 12K rows
 
-### Phase 2: Generic Query Bounds
-**Goal**: Make QueryBuilder and loaders work with any sqlx::Database.
+**Implementation:** `insert_many` added to CRUD module with automatic chunking (batch size 100).
+- `insert_many(&pool, items)` — for pool executors
+- `insert_many_in_tx(&mut tx, items)` — for existing transactions
+- Atomic: all rows inserted or none
+- Tests: 8/8 passing, regression benchmark shows 4-5x improvement
 
-#### 2.1 Update QueryBuilder Bounds
-```rust
-// magic/src/query/executor.rs
-impl<'a, T> QueryBuilder<'a, T>
-where
-    T: Model + ModelMeta + Send + Unpin,
-    T::DB: sqlx::Database,
-    // Remove hardcoded SqliteRow, use generic:
-    T: for<'r> sqlx::FromRow<'r, <T::DB as sqlx::Database>::Row>,
-    T::Id: Clone + Eq + Hash + Display + for<'q> sqlx::Encode<'q, T::DB> + sqlx::Type<T::DB>,
-{
-    // ...
-}
-```
+#### P1.4 — Transaction API decision ✅
+Document whether MagicORM exposes sqlx transactions directly or adds a wrapper.
 
-#### 2.2 Update All Loaders
-- `magic/src/relations/loaders/has_many/eager.rs`
-- `magic/src/relations/loaders/has_many/lazy.rs`
-- `magic/src/relations/loaders/belongs_to/lazy.rs`
-- `magic/src/query/eager/builder.rs`
-- `magic/src/query/eager/executor.rs`
+**Decision:** Expose sqlx transactions directly for now (ADR-002).
 
-All need the same generic treatment.
+#### P1.5 — Query ergonomics ✅
+Review current QueryBuilder API surface before adding features.
+Ensure basic read patterns are coherent.
+
+**Implemented:**
+- `fetch_count(executor) -> Result<i64>` — for count queries
+- `fetch_exists(executor) -> Result<bool>` — for existence checks
+- `order_by(col, asc)` — accumulates multiple order clauses
+- `filter_null(col)` / `filter_not_null(col)` — NULL checks
+- `exists()` mode — generates `SELECT 1 ... LIMIT 1`
+
+**Benchmark results (100K observations):**
+- Full scan: 594ms (168K rows/s)
+- Filter by session_id: 569ms (176K rows/s)
+- Time window (10%): 99ms (113K rows/s)
+- Time window + LIMIT: 42ms (24K rows/s)
+- COUNT: 17ms (6M rows/s)
+- EXISTS: 0.45ms
+- OFFSET pagination: 189ms (5K rows/s) — **known limitation, moved to P2**
+
+**Conclusion:** Query model is sufficient for Thalos immediate workload.
 
 ---
 
-### Phase 3: SQL Dialect Abstraction
-**Goal**: Handle SQL syntax differences (parameter placeholders, functions).
+### P2 — Data lifecycle ✅ COMPLETE
 
-#### 3.1 Create SqlGenerator Trait
-```rust
-pub trait SqlGenerator {
-    fn placeholder(index: usize) -> String;  // SQLite: "?", Postgres: "$1"
-    fn last_insert_id_sql() -> &'static str;
-    fn enable_foreign_keys_sql() -> &'static str;
-}
-```
+| Phase | Status | Key capability |
+|-------|--------|----------------|
+| P2.1 Index strategy | ✅ | `#[magic(index(...))]`, composite indexes |
+| P2.2 Keyset/cursor pagination | ✅ | `Cursor`, `after()`, constant-time pagination |
+| P2.3 Large-result streaming | ✅ | `stream()`, lazy iteration |
+| P2.4 Retention/archival | ✅ | `delete()`, `vacuum()`, `database_size()` |
 
-#### 3.2 Implement for Each DB
-```rust
-pub struct SqliteSqlGenerator;
-impl SqlGenerator for SqliteSqlGenerator {
-    fn placeholder(index: usize) -> String { "?".to_string() }
-    fn last_insert_id_sql() -> &'static str { "SELECT last_insert_rowid()" }
-}
-
-pub struct PostgresSqlGenerator;
-impl SqlGenerator for PostgresSqlGenerator {
-    fn placeholder(index: usize) -> String { format!("${}", index) }
-    fn last_insert_id_sql() -> &'static str { "RETURNING id" }
-}
-```
-
-#### 3.3 Update Type Mapping
-```rust
-// magic_derive/src/codegen/utils/type_mapping.rs
-pub fn map_rust_to_sql(ty: &syn::Type, db_type: &str) -> &'static str {
-    match db_type {
-        "sqlite" => map_rust_to_sqlite(ty),
-        "postgres" => map_rust_to_postgres(ty),
-        _ => "TEXT",
-    }
-}
-```
+**Result:** MagicORM now handles Thalos-scale telemetry workloads:
+- 188K rows/s insert, 330K rows/s batch
+- 0.37ms latest observation query
+- ~6ms keyset pagination (constant)
+- 73ms stream first 1K (9x faster than materializing)
 
 ---
 
-### Phase 4: Executor Adapters
-**Goal**: Support multiple connection pool types.
+### P3 — Schema evolution (NEXT)
 
-#### 4.1 Update Existing Adapter
-```rust
-// magic/src/executor/adapters/sqlite.rs
-impl Executor for SqlitePool { /* ... */ }
+Architecture review before implementation.
+
+#### P3.1 — Capability audit
+Review what MagicORM is now and what's missing:
+- Schema evolution (migrations, diff engine)
+- Database abstraction (PostgreSQL parity)
+- ORM ergonomics (relations, joins, eager/lazy)
+- Production hardening (error model, observability)
+
+#### P3.2 — Schema model
+Define schema representation:
+```text
+ModelDescriptor
+├── columns
+├── foreign_keys
+└── indexes
 ```
+→ Schema representation → Database introspection → Diff → Migration
 
-#### 4.2 Add Postgres Adapter
-```rust
-// magic/src/executor/adapters/postgres.rs (new)
-use sqlx::postgres::PgPool;
+#### P3.3 — Migration diff engine
+Detect schema changes and generate migrations.
 
-impl Executor for PgPool {
-    // Implement required methods
-}
-```
-
-#### 4.3 Generic Pool Type
-```rust
-// magic/src/prelude.rs
-// Before: pub use sqlx::SqlitePool;
-// After:
-#[cfg(feature = "sqlite")]
-pub use sqlx::SqlitePool;
-
-#[cfg(feature = "postgres")]
-pub use sqlx::postgres::PgPool;
-```
+#### P3.4 — Migration apply/rollback
+Apply and rollback migrations with versioning.
 
 ---
 
-### Phase 5: Feature Flags
-**Goal**: Allow users to choose database at compile time.
+### P3 — Distributed / specialized
 
-#### 5.1 Update Cargo.toml
-```toml
-[features]
-default = ["sqlite"]
-sqlite = ["sqlx/sqlite"]
-postgres = ["sqlx/postgres"]
-```
-
-#### 5.2 Conditional Compilation
-```rust
-#[cfg(feature = "sqlite")]
-pub type DefaultPool = SqlitePool;
-
-#[cfg(feature = "postgres")]
-pub type DefaultPool = PgPool;
-```
+- libSQL/Turso adapter
+- Replication
+- Conflict resolution
+- Embedded/MCU experimentation (out of scope for Thalos)
 
 ---
 
-## Implementation Order
+## Architecture Decisions
 
-1. **Phase 1** (1-2 days): Add `type DB` to Model, update core traits
-2. **Phase 2** (2-3 days): Update all bounds in queries and loaders
-3. **Phase 3** (3-4 days): SQL dialect abstraction
-4. **Phase 4** (2-3 days): Executor adapters
-5. **Phase 5** (1 day): Feature flags
+### ADR 001: SQLite Connection First
+`docs/adr/001-sqlite-connection-first.md`
 
-**Total estimated time**: 9-13 days for complete abstraction.
+Key decisions:
+- Connection is the primary abstraction, Pool is optional
+- `Sqlite::open() → SqliteConnection`
+- `Sqlite::pool() → SqlitePool`
+- PRAGMAs applied per-connection at initialization
+- No sync/replication in ORM core
+- No MCU support (ESP32 sends via transport, not SQLite)
+
+### ADR 002: Transaction API
+`docs/adr/002-transaction-api.md`
+
+Key decisions:
+- Expose sqlx transactions directly for now
+- No wrapper abstraction needed
+- `insert_many_in_tx` available for batch operations within transactions
+
+### ADR 003: Batch Insertion
+`docs/adr/003-batch-insertion.md`
+
+Key decisions:
+- `insert_many` added for telemetry-scale workloads
+- Default batch size: 100 (based on benchmark results)
+- Atomic: all rows inserted or none
+- Two variants: `insert_many(&pool, items)` and `insert_many_in_tx(&mut tx, items)`
+- Batch insertion is required for observation ingestion at scale
 
 ---
 
-## Risks & Considerations
+## Pre-existing Issues (tracked separately)
 
-1. **sqlx::Database is a complex trait** - may require nightly features
-2. **Associated type defaults** - `type DB = sqlx::Sqlite;` as default to maintain backward compatibility
-3. **Breaking changes** - this will break existing user code that relies on hardcoded SQLite types
-4. **Testing** - need integration tests for both SQLite and Postgres
+| Test | Failure | Introduced |
+|------|---------|------------|
+| `test_transaction_rollback` | User exists after rollback | Pre-P0 |
+| `test_transaction_update_and_delete` | User name mismatch after rollback | Pre-P0 |
 
----
-
-## Next Step
-
-Start with **Phase 1.1**: Add `type DB` to Model trait and update the derive macro to support it.
+These are not blocking P1 work but must be investigated and resolved independently.
