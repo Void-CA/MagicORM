@@ -69,4 +69,18 @@ impl SqlDialect for PostgresDialect {
             _ => "TEXT",
         }
     }
+
+    fn drop_foreign_key(
+        table: &str,
+        fk: &crate::model::ForeignKeyMeta,
+        _columns: &[crate::model::ColumnMeta],
+        _foreign_keys: &[crate::model::ForeignKeyMeta],
+    ) -> String {
+        let constraint_name = format!("{}_{}_fkey", table, fk.field);
+        format!(
+            "ALTER TABLE {} DROP CONSTRAINT {};",
+            Self::quote_identifier(table),
+            Self::quote_identifier(&constraint_name),
+        )
+    }
 }

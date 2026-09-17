@@ -184,7 +184,11 @@ pub async fn generate(name: &str) -> Result<()> {
     println!("⚡ {} cambios detectados.", steps.len());
 
     // Generar SQL con SQLite dialect (por defecto)
-    let sql = render_migration::<SqliteDialect>(&steps);
+    let up_sql = render_migration::<SqliteDialect>(&steps);
+
+    // Generar rollback: diff invertido (last → desired)
+    let down_steps = diff(&last, &desired);
+    let down_sql = render_migration::<SqliteDialect>(&down_steps);
 
     // Escribir archivo de migración
     let dir = migrations_dir();
@@ -194,7 +198,7 @@ pub async fn generate(name: &str) -> Result<()> {
     let filename = format!("{}_{}.sql", ts, name);
     let path = dir.join(&filename);
 
-    let template = format!("-- UP\n{}\n\n\n-- DOWN\n-- TODO: escribir rollback\n", sql);
+    let template = format!("-- UP\n{}\n\n\n-- DOWN\n{}\n", up_sql, down_sql);
     fs::write(&path, template)?;
     println!("✓ Creada: {}", path.display());
 

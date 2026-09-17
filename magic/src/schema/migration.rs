@@ -32,6 +32,8 @@ pub enum MigrationStep {
     DropForeignKey {
         table: String,
         fk: ForeignKeyMeta,
+        columns: Vec<ColumnMeta>,
+        foreign_keys: Vec<ForeignKeyMeta>,
     },
 }
 
@@ -129,6 +131,8 @@ pub fn diff(desired: &[ModelDescriptor], actual: &[ModelDescriptor]) -> Vec<Migr
                 steps.push(MigrationStep::DropForeignKey {
                     table: desired_desc.table.to_string(),
                     fk: fk.clone(),
+                    columns: desired_desc.columns.clone(),
+                    foreign_keys: desired_desc.foreign_keys.clone(),
                 });
             }
         }
@@ -200,15 +204,12 @@ pub fn render_step<D: SqlDialect>(step: &MigrationStep) -> String {
             )
         }
 
-        MigrationStep::DropForeignKey { table, fk } => {
-            // SQLite no soporta DROP FOREIGN KEY directamente.
-            // Postgres: ALTER TABLE ... DROP CONSTRAINT ...
-            // Por ahora emitimos un comentario con la FK a eliminar.
-            format!(
-                "-- TODO: DROP FOREIGN KEY {} REFERENCES {} ({}) ON TABLE {}",
-                fk.field, fk.related_table, fk.related_column, table,
-            )
-        }
+        MigrationStep::DropForeignKey {
+            table,
+            fk,
+            columns,
+            foreign_keys,
+        } => D::drop_foreign_key(table, fk, columns, foreign_keys),
     }
 }
 
@@ -246,7 +247,7 @@ fn format_column_def<D: SqlDialect>(col: &ColumnMeta) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::dialect::SqliteDialect;
+    use crate::dialect::{SqliteDialect, PostgresDialect};
 
     fn user_descriptor() -> ModelDescriptor {
         ModelDescriptor {
@@ -561,5 +562,153 @@ mod tests {
         assert!(sql.contains("ADD COLUMN"));
         // steps separated by blank line
         assert!(sql.contains("\n\n"));
+    }
+
+    // =====================================================================
+    // DropForeignKey — table rebuild (SQLite) / DROP CONSTRAINT (Postgres)
+    // =====================================================================
+
+    #[test]
+    fn test_diff_drop_foreign_key() {
+        let desired = vec![ModelDescriptor {
+            table: "posts".to_string(),
+            columns: post_descriptor().columns.clone(),
+            foreign_keys: vec![],
+            indexes: vec![],
+        }];
+        let actual = vec![post_descriptor()];
+        let steps = diff(&desired, &actual);
+        assert_eq!(steps.len(), 1);
+        match &steps[0] {
+            MigrationStep::DropForeignKey {
+                table,
+                fk,
+                columns,
+                foreign_keys,
+            } => {
+                assert_eq!(table, "posts");
+                assert_eq!(fk.field, "user_id");
+                assert!(!columns.is_empty());
+                assert!(foreign_keys.is_empty());
+            }
+            other => panic!("expected DropForeignKey, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_render_drop_foreign_key_sqlite() {
+        let step = MigrationStep::DropForeignKey {
+            table: "posts".to_string(),
+            fk: ForeignKeyMeta {
+                field: "user_id".to_string(),
+                related_table: "users".to_string(),
+                related_column: "id".to_string(),
+            },
+            columns: post_descriptor().columns,
+            foreign_keys: vec![],
+        };
+        let sql = render_step::<SqliteDialect>(&step);
+        assert!(sql.contains("PRAGMA foreign_keys=OFF"));
+        assert!(sql.contains("RENAME TO"));
+        assert!(sql.contains("CREATE TABLE"));
+        assert!(sql.contains("INSERT INTO"));
+        assert!(sql.contains("SELECT"));
+        assert!(sql.contains("DROP TABLE"));
+        assert!(sql.contains("PRAGMA foreign_keys=ON"));
+        // Verify the FK is NOT in the new table definition
+        assert!(!sql.contains("FOREIGN KEY"));
+    }
+
+    #[test]
+    fn test_render_drop_foreign_key_postgres() {
+        let step = MigrationStep::DropForeignKey {
+            table: "posts".to_string(),
+            fk: ForeignKeyMeta {
+                field: "user_id".to_string(),
+                related_table: "users".to_string(),
+                related_column: "id".to_string(),
+            },
+            columns: post_descriptor().columns,
+            foreign_keys: vec![],
+        };
+        let sql = render_step::<PostgresDialect>(&step);
+        assert!(sql.contains("ALTER TABLE"));
+        assert!(sql.contains("DROP CONSTRAINT"));
+        assert!(sql.contains("posts_user_id_fkey"));
+    }
+
+    #[test]
+    fn test_diff_drop_foreign_key_preserves_remaining_fks() {
+        let desired = vec![ModelDescriptor {
+            table: "reactions".to_string(),
+            columns: vec![
+                ColumnMeta {
+                    name: "id".to_string(),
+                    sql_type: "INTEGER".to_string(),
+                    nullable: false,
+                    primary_key: true,
+                    auto_increment: true,
+                },
+                ColumnMeta {
+                    name: "post_id".to_string(),
+                    sql_type: "INTEGER".to_string(),
+                    nullable: false,
+                    primary_key: false,
+                    auto_increment: false,
+                },
+            ],
+            foreign_keys: vec![ForeignKeyMeta {
+                field: "post_id".to_string(),
+                related_table: "posts".to_string(),
+                related_column: "id".to_string(),
+            }],
+            indexes: vec![],
+        }];
+        let actual = vec![ModelDescriptor {
+            table: "reactions".to_string(),
+            columns: vec![
+                ColumnMeta {
+                    name: "id".to_string(),
+                    sql_type: "INTEGER".to_string(),
+                    nullable: false,
+                    primary_key: true,
+                    auto_increment: true,
+                },
+                ColumnMeta {
+                    name: "post_id".to_string(),
+                    sql_type: "INTEGER".to_string(),
+                    nullable: false,
+                    primary_key: false,
+                    auto_increment: false,
+                },
+                ColumnMeta {
+                    name: "user_id".to_string(),
+                    sql_type: "INTEGER".to_string(),
+                    nullable: false,
+                    primary_key: false,
+                    auto_increment: false,
+                },
+            ],
+            foreign_keys: vec![
+                ForeignKeyMeta {
+                    field: "post_id".to_string(),
+                    related_table: "posts".to_string(),
+                    related_column: "id".to_string(),
+                },
+                ForeignKeyMeta {
+                    field: "user_id".to_string(),
+                    related_table: "users".to_string(),
+                    related_column: "id".to_string(),
+                },
+            ],
+            indexes: vec![],
+        }];
+        let steps = diff(&desired, &actual);
+        // Should produce: DropColumn(user_id) + DropForeignKey(user_id)
+        assert_eq!(steps.len(), 2);
+        let has_drop_fk = steps.iter().any(|s| {
+            matches!(s, MigrationStep::DropForeignKey { fk, .. } if fk.field == "user_id")
+        });
+        assert!(has_drop_fk);
     }
 }

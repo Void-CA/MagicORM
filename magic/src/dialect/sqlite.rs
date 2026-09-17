@@ -64,4 +64,62 @@ impl SqlDialect for SqliteDialect {
             _ => "TEXT",
         }
     }
+
+    fn drop_foreign_key(
+        table: &str,
+        _fk: &crate::model::ForeignKeyMeta,
+        columns: &[crate::model::ColumnMeta],
+        foreign_keys: &[crate::model::ForeignKeyMeta],
+    ) -> String {
+        let qt = Self::quote_identifier(table);
+        let old = format!("{}__old", table);
+        let qold = Self::quote_identifier(&old);
+
+        let col_names: Vec<String> = columns
+            .iter()
+            .map(|c| Self::quote_identifier(&c.name))
+            .collect();
+
+        let col_defs: Vec<String> = columns
+            .iter()
+            .map(|c| {
+                let mut def = format!("    {} {}", Self::quote_identifier(&c.name), c.sql_type);
+                if c.primary_key {
+                    def.push_str(" PRIMARY KEY");
+                }
+                if c.auto_increment {
+                    def.push_str(" AUTOINCREMENT");
+                }
+                if !c.nullable && !c.primary_key {
+                    def.push_str(" NOT NULL");
+                }
+                def
+            })
+            .collect();
+
+        let mut fk_defs: Vec<String> = Vec::new();
+        for fk in foreign_keys {
+            fk_defs.push(format!(
+                "    FOREIGN KEY ({}) REFERENCES {} ({}) ON DELETE CASCADE",
+                Self::quote_identifier(&fk.field),
+                Self::quote_identifier(&fk.related_table),
+                Self::quote_identifier(&fk.related_column),
+            ));
+        }
+
+        let mut all_defs = col_defs;
+        all_defs.extend(fk_defs);
+        let create_body = all_defs.join(",\n");
+
+        let select_cols = col_names.join(", ");
+
+        format!(
+            "PRAGMA foreign_keys=OFF;\n\
+             ALTER TABLE {qt} RENAME TO {qold};\n\
+             CREATE TABLE {qt} (\n{create_body}\n);\n\
+             INSERT INTO {qt} ({select_cols}) SELECT {select_cols} FROM {qold};\n\
+             DROP TABLE {qold};\n\
+             PRAGMA foreign_keys=ON;",
+        )
+    }
 }
