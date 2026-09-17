@@ -4,9 +4,10 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use magic_orm::dialect::{HasDialect, PostgresDialect, SqlDialect, SqliteDialect};
 use magic_orm::model::{ColumnMeta, ForeignKeyMeta, ModelDescriptor};
-use magic_orm::dialect::{HasDialect, SqlDialect, SqliteDialect, PostgresDialect};
-use magic_orm::schema::migration::{diff, render_migration, MigrationStep};
+use magic_orm::schema::migration::{MigrationStep, diff, render_migration};
+use magic_orm::sqlite::Sqlite;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -51,11 +52,7 @@ fn parse_sql_file(path: &Path) -> Result<(String, String)> {
         .trim()
         .to_string();
 
-    let down = parts
-        .get(1)
-        .unwrap_or(&"")
-        .trim()
-        .to_string();
+    let down = parts.get(1).unwrap_or(&"").trim().to_string();
 
     Ok((up, down))
 }
@@ -102,7 +99,11 @@ fn fetch_descriptors() -> Result<Vec<ModelDescriptor>> {
         }
         let args = &parts[1..];
         // Filtrar redirect 2>/dev/null
-        let args: Vec<&str> = args.iter().filter(|a| !a.starts_with("2>")).copied().collect();
+        let args: Vec<&str> = args
+            .iter()
+            .filter(|a| !a.starts_with("2>"))
+            .copied()
+            .collect();
         Command::new("cargo")
             .args(&args)
             .output()
@@ -120,7 +121,8 @@ fn fetch_descriptors() -> Result<Vec<ModelDescriptor>> {
              Asegúrate de tener un binario 'magic-describe' en tu proyecto que \
              imprima all_descriptors() como JSON a stdout.\n\
              stderr: {}",
-            bin_name, stderr
+            bin_name,
+            stderr
         );
     }
 
@@ -162,7 +164,9 @@ pub async fn generate(name: &str) -> Result<()> {
             eprintln!("       println!(\"{{}}\", serde_json::to_string(&descs).unwrap());");
             eprintln!("   }}");
             eprintln!("   ```");
-            eprintln!("   Luego ejecuta: cargo run --bin magic-describe | magic migrate generate <name>");
+            eprintln!(
+                "   Luego ejecuta: cargo run --bin magic-describe | magic migrate generate <name>"
+            );
             eprintln!("   O configúralo vía MAGIC_DESCRIBE_BIN");
             return Ok(());
         }
@@ -190,10 +194,7 @@ pub async fn generate(name: &str) -> Result<()> {
     let filename = format!("{}_{}.sql", ts, name);
     let path = dir.join(&filename);
 
-    let template = format!(
-        "-- UP\n{}\n\n\n-- DOWN\n-- TODO: escribir rollback\n",
-        sql
-    );
+    let template = format!("-- UP\n{}\n\n\n-- DOWN\n-- TODO: escribir rollback\n", sql);
     fs::write(&path, template)?;
     println!("✓ Creada: {}", path.display());
 
@@ -206,8 +207,7 @@ pub async fn generate(name: &str) -> Result<()> {
 
 /// Aplica migraciones pendientes.
 pub async fn up(db_path: &str) -> Result<()> {
-    let url = format!("sqlite://{}", db_path);
-    let pool = sqlx::SqlitePool::connect(&url).await?;
+    let pool = Sqlite::pool(db_path).await?;
 
     // Asegurar tabla _migrations
     sqlx::query(
@@ -215,23 +215,23 @@ pub async fn up(db_path: &str) -> Result<()> {
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL UNIQUE,
             applied_at TEXT NOT NULL
-        )"
+        )",
     )
     .execute(&pool)
     .await?;
 
     // Migraciones ya aplicadas
-    let applied: Vec<String> = sqlx::query_as::<_, (String,)>(
-        "SELECT name FROM _migrations ORDER BY name"
-    )
-    .fetch_all(&pool)
-    .await?
-    .into_iter()
-    .map(|r| r.0)
-    .collect();
+    let applied: Vec<String> =
+        sqlx::query_as::<_, (String,)>("SELECT name FROM _migrations ORDER BY name")
+            .fetch_all(&pool)
+            .await?
+            .into_iter()
+            .map(|r| r.0)
+            .collect();
 
     let files = list_migration_files()?;
-    let pending: Vec<&PathBuf> = files.iter()
+    let pending: Vec<&PathBuf> = files
+        .iter()
         .filter(|f| !applied.contains(&f.file_stem().unwrap().to_string_lossy().to_string()))
         .collect();
 
@@ -249,7 +249,9 @@ pub async fn up(db_path: &str) -> Result<()> {
             for stmt in up_sql.split(';') {
                 let stmt = stmt.trim();
                 if !stmt.is_empty() {
-                    sqlx::query(stmt).execute(&pool).await
+                    sqlx::query(stmt)
+                        .execute(&pool)
+                        .await
                         .with_context(|| format!("Error ejecutando:\n{}", stmt))?;
                 }
             }
@@ -268,14 +270,12 @@ pub async fn up(db_path: &str) -> Result<()> {
 
 /// Revierte la última migración.
 pub async fn down(db_path: &str) -> Result<()> {
-    let url = format!("sqlite://{}", db_path);
-    let pool = sqlx::SqlitePool::connect(&url).await?;
+    let pool = Sqlite::pool(db_path).await?;
 
-    let last: Option<(String,)> = sqlx::query_as(
-        "SELECT name FROM _migrations ORDER BY id DESC LIMIT 1"
-    )
-    .fetch_optional(&pool)
-    .await?;
+    let last: Option<(String,)> =
+        sqlx::query_as("SELECT name FROM _migrations ORDER BY id DESC LIMIT 1")
+            .fetch_optional(&pool)
+            .await?;
 
     let (last_name,) = match last {
         Some(r) => r,
@@ -288,7 +288,10 @@ pub async fn down(db_path: &str) -> Result<()> {
     // Buscar el archivo .sql
     let files = list_migration_files()?;
     let file = files.iter().find(|f| {
-        f.file_stem().unwrap().to_string_lossy().starts_with(&last_name[..20])
+        f.file_stem()
+            .unwrap()
+            .to_string_lossy()
+            .starts_with(&last_name[..20])
     });
 
     match file {
@@ -298,7 +301,9 @@ pub async fn down(db_path: &str) -> Result<()> {
                 for stmt in down_sql.split(';') {
                     let stmt = stmt.trim();
                     if !stmt.is_empty() {
-                        sqlx::query(stmt).execute(&pool).await
+                        sqlx::query(stmt)
+                            .execute(&pool)
+                            .await
                             .with_context(|| format!("Error ejecutando rollback:\n{}", stmt))?;
                     }
                 }
@@ -326,17 +331,11 @@ pub async fn down(db_path: &str) -> Result<()> {
 
 /// Muestra el estado de las migraciones.
 pub async fn status(db_path: &str) -> Result<()> {
-    let url = format!("sqlite://{}", db_path);
-    let pool = sqlx::SqlitePool::connect(&url).await?;
-
-    // Activar claves foráneas
-    sqlx::query("PRAGMA foreign_keys = ON;")
-        .execute(&pool)
-        .await?;
+    let pool = Sqlite::pool(db_path).await?;
 
     // Verificar existencia de tabla _migrations
     let table_exists: (i64,) = sqlx::query_as(
-        "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='_migrations';"
+        "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='_migrations';",
     )
     .fetch_one(&pool)
     .await?;
@@ -346,11 +345,10 @@ pub async fn status(db_path: &str) -> Result<()> {
         return Ok(());
     }
 
-    let rows: Vec<(i64, String, String)> = sqlx::query_as(
-        "SELECT id, name, applied_at FROM _migrations ORDER BY id;"
-    )
-    .fetch_all(&pool)
-    .await?;
+    let rows: Vec<(i64, String, String)> =
+        sqlx::query_as("SELECT id, name, applied_at FROM _migrations ORDER BY id;")
+            .fetch_all(&pool)
+            .await?;
 
     let files = list_migration_files()?;
     let applied_names: Vec<String> = rows.iter().map(|r| r.1.clone()).collect();
@@ -361,10 +359,16 @@ pub async fn status(db_path: &str) -> Result<()> {
     } else {
         for (id, name, applied_at) in &rows {
             let file_exists = files.iter().any(|f| {
-                f.file_stem().unwrap().to_string_lossy().starts_with(&name[..20])
+                f.file_stem()
+                    .unwrap()
+                    .to_string_lossy()
+                    .starts_with(&name[..20])
             });
             let marker = if file_exists { "✓" } else { "⚠" };
-            println!("  [{}] {} {} (aplicada en {})", id, marker, name, applied_at);
+            println!(
+                "  [{}] {} {} (aplicada en {})",
+                id, marker, name, applied_at
+            );
         }
     }
 

@@ -1,5 +1,5 @@
-use sqlx::SqlitePool;
 use anyhow::Result;
+use magic_orm::sqlite::Sqlite;
 use std::path::Path;
 
 pub async fn init(path: &Option<String>) -> Result<()> {
@@ -13,13 +13,7 @@ pub async fn init(path: &Option<String>) -> Result<()> {
         std::fs::create_dir_all(parent)?;
     }
 
-    let url = format!("sqlite://{}", db_path);
-    let pool = SqlitePool::connect(&url).await?;
-
-    // Activar claves foráneas
-    sqlx::query("PRAGMA foreign_keys = ON;")
-        .execute(&pool)
-        .await?;
+    let pool = Sqlite::pool(&db_path).await?;
 
     println!("Base de datos inicializada en '{}'", db_path);
 

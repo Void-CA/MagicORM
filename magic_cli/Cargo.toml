@@ -7,7 +7,7 @@ edition = "2024"
 anyhow = "1.0.102"
 clap = { version = "4.5.60", features = ["derive"] }
 magic_orm = { path = "../magic" }
-sqlx = { version = "0.8.6", features = ["postgres", "runtime-tokio", "macros"] }
+sqlx = { version = "0.8.6", default-features = false, features = ["runtime-tokio", "macros"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
